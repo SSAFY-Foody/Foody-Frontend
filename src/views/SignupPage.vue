@@ -1,0 +1,492 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { Mail, Lock, User, Check, Send, Scale, Ruler, Calendar, Activity } from 'lucide-vue-next'
+import logoImage from '@/assets/foody_logo.png'
+import foodyEggImage from '@/assets/characters/foody_egg.png'
+
+const router = useRouter()
+
+const username = ref('')
+const isUsernameChecked = ref(false)
+const isUsernameAvailable = ref(false)
+const password = ref('')
+const confirmPassword = ref('')
+const name = ref('')
+const email = ref('')
+const isEmailSent = ref(false)
+const verificationCode = ref('')
+const age = ref('')
+const height = ref('')
+const weight = ref('')
+const gender = ref<'male' | 'female' | ''>('')
+const activityLevel = ref('3')
+const hasDiabetes = ref(false)
+const showWelcome = ref(false)
+
+const handleUsernameCheck = () => {
+  const isAvailable = Math.random() > 0.5
+  isUsernameAvailable.value = isAvailable
+  isUsernameChecked.value = true
+}
+
+const handleSendEmail = () => {
+  isEmailSent.value = true
+  console.log('Verification email sent to:', email.value)
+}
+
+const handleSubmit = (e: Event) => {
+  e.preventDefault()
+  
+  if (!isUsernameChecked.value || !isUsernameAvailable.value) {
+    alert('아이디 중복 체크를 해주세요.')
+    return
+  }
+  
+  if (!isEmailSent.value) {
+    alert('이메일 인증을 진행해주세요.')
+    return
+  }
+  
+  if (password.value !== confirmPassword.value) {
+    alert('비밀번호가 일치하지 않습니다.')
+    return
+  }
+  
+  console.log('Signup:', {
+    username: username.value,
+    password: password.value,
+    name: name.value,
+    email: email.value,
+    verificationCode: verificationCode.value,
+    age: age.value,
+    height: height.value,
+    weight: weight.value,
+    gender: gender.value,
+    activityLevel: activityLevel.value,
+    hasDiabetes: hasDiabetes.value
+  })
+  
+  localStorage.setItem('isLoggedIn', 'true')
+  showWelcome.value = true
+  
+  // 잠시 후 분석 페이지로 이동
+  setTimeout(() => {
+    showWelcome.value = false
+    router.push('/analyze')
+  }, 2000)
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-green-50/40 via-emerald-50/30 to-teal-50/40 py-8 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Left Side - Foody Egg Illustration -->
+        <div class="hidden lg:flex flex-col items-center justify-center text-center">
+          <div
+            v-motion
+            :initial="{ opacity: 0, scale: 0.8 }"
+            :enter="{ opacity: 1, scale: 1, transition: { delay: 300 } }"
+          >
+            <img
+              v-motion
+              :initial="{ y: 0 }"
+              :enter="{
+                y: [0, -20, 0],
+                transition: {
+                  duration: 3000,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }
+              }"
+              :src="foodyEggImage"
+              alt="푸디알"
+              class="w-80 h-80 object-contain drop-shadow-2xl mx-auto mb-8"
+            />
+          </div>
+          
+          <h2
+            v-motion
+            :initial="{ opacity: 0, y: 20 }"
+            :enter="{ opacity: 1, y: 0, transition: { delay: 500 } }"
+            class="text-3xl font-bold text-gray-900 mb-4"
+          >
+            푸디가 알에서 부화하기 직전이에요!
+          </h2>
+          <p
+            v-motion
+            :initial="{ opacity: 0, y: 20 }"
+            :enter="{ opacity: 1, y: 0, transition: { delay: 600 } }"
+            class="text-gray-700 text-lg"
+          >
+            회원가입을 통해<br>
+            푸디를 부화시켜주세요 🥚✨
+          </p>
+        </div>
+
+        <!-- Right Side - Form -->
+        <div
+          v-motion
+          :initial="{ opacity: 0, y: 20 }"
+          :enter="{ opacity: 1, y: 0 }"
+          class="w-full"
+        >
+      <!-- Logo -->
+      <div class="text-center mb-8 flex flex-col items-center">
+        <RouterLink to="/">
+          <img
+            v-motion
+            :hovered="{ scale: 1.05 }"
+            :src="logoImage"
+            alt="Foody Logo"
+            class="h-20 mx-auto mb-4 cursor-pointer hover:opacity-80 transition-opacity"
+          />
+        </RouterLink>
+        <h1 class="text-gray-900 mb-2">회원가입</h1>
+        <p class="text-gray-600">건강한 식단 관리의 시작</p>
+      </div>
+
+      <!-- Signup Card -->
+      <div class="bg-white rounded-3xl shadow-2xl p-8 border border-emerald-100/60 max-h-[70vh] overflow-y-auto">
+        <!-- Form -->
+        <form @submit="handleSubmit" class="space-y-5">
+          <!-- 계정 정보 섹션 -->
+          <div class="pb-4 border-b border-gray-200">
+            <h3 class="text-lg text-gray-900 mb-4">계정 정보</h3>
+            
+            <!-- 아이디 -->
+            <div class="mb-4">
+              <label for="username" class="block text-sm text-gray-700 mb-2">아이디</label>
+              <div class="flex gap-2">
+                <div class="relative flex-1">
+                  <User class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                  <input
+                    id="username"
+                    v-model="username"
+                    type="text"
+                    placeholder="아이디"
+                    class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                    required
+                    @input="isUsernameChecked = false"
+                  />
+                </div>
+                <button
+                  v-motion
+                  :hovered="{ scale: 1.02 }"
+                  :tapped="{ scale: 0.98 }"
+                  type="button"
+                  @click="handleUsernameCheck"
+                  :class="[
+                    'px-5 py-3 rounded-xl transition-colors whitespace-nowrap',
+                    isUsernameChecked && isUsernameAvailable
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ]"
+                >
+                  {{ isUsernameChecked && isUsernameAvailable ? '✓ 사용가능' : '중복확인' }}
+                </button>
+              </div>
+              <p
+                v-if="isUsernameChecked"
+                :class="['text-sm mt-2', isUsernameAvailable ? 'text-emerald-600' : 'text-red-600']"
+              >
+                {{ isUsernameAvailable ? '사용 가능한 아이디입니다.' : '이미 사용 중인 아이디입니다.' }}
+              </p>
+            </div>
+
+            <!-- 비밀번호 -->
+            <div class="mb-4">
+              <label for="password" class="block text-sm text-gray-700 mb-2">비밀번호</label>
+              <div class="relative">
+                <Lock class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  v-model="password"
+                  type="password"
+                  placeholder="••••••••"
+                  class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                  required
+                  minlength="8"
+                />
+              </div>
+            </div>
+
+            <!-- 비밀번호 확인 -->
+            <div>
+              <label for="confirmPassword" class="block text-sm text-gray-700 mb-2">비밀번호 확인</label>
+              <div class="relative">
+                <Lock class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  id="confirmPassword"
+                  v-model="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                  required
+                  minlength="8"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 개인 정보 섹션 -->
+          <div class="pb-4 border-b border-gray-200">
+            <h3 class="text-lg text-gray-900 mb-4">개인 정보</h3>
+            
+            <!-- 이름 -->
+            <div class="mb-4">
+              <label for="name" class="block text-sm text-gray-700 mb-2">이름</label>
+              <div class="relative">
+                <User class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  id="name"
+                  v-model="name"
+                  type="text"
+                  placeholder="홍길동"
+                  class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- 이메일 -->
+            <div class="mb-4">
+              <label for="email" class="block text-sm text-gray-700 mb-2">이메일</label>
+              <div class="flex gap-2 mb-2">
+                <div class="relative flex-1">
+                  <Mail class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                  <input
+                    id="email"
+                    v-model="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                    required
+                    @input="isEmailSent = false"
+                  />
+                </div>
+                <button
+                  v-motion
+                  :hovered="{ scale: 1.02 }"
+                  :tapped="{ scale: 0.98 }"
+                  type="button"
+                  @click="handleSendEmail"
+                  :disabled="isEmailSent"
+                  :class="[
+                    'px-5 py-3 rounded-xl transition-colors whitespace-nowrap flex items-center gap-2',
+                    isEmailSent
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ]"
+                >
+                  <Send :size="16" />
+                  {{ isEmailSent ? '전송완료' : '인증번호' }}
+                </button>
+              </div>
+              <p v-if="isEmailSent" class="text-sm text-emerald-600 mb-2">
+                인증 번호가 발송되었습니다.
+              </p>
+              <!-- 인증코드 -->
+              <div v-if="isEmailSent" class="relative">
+                <Check class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  id="verificationCode"
+                  v-model="verificationCode"
+                  type="text"
+                  placeholder="인증 코드 6자리"
+                  class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                  required
+                  maxlength="6"
+                />
+              </div>
+            </div>
+
+            <!-- 나이, 성별 -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="age" class="block text-sm text-gray-700 mb-2">나이</label>
+                <div class="relative">
+                  <Calendar class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                  <input
+                    id="age"
+                    v-model="age"
+                    type="number"
+                    placeholder="25"
+                    class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                    required
+                    min="1"
+                    max="120"
+                  />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">성별</label>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    @click="gender = 'male'"
+                    :class="[
+                      'flex-1 py-3 rounded-xl border-2 transition-all',
+                      gender === 'male'
+                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        : 'bg-white text-gray-700 border-emerald-100 hover:border-emerald-300'
+                    ]"
+                  >
+                    남성
+                  </button>
+                  <button
+                    type="button"
+                    @click="gender = 'female'"
+                    :class="[
+                      'flex-1 py-3 rounded-xl border-2 transition-all',
+                      gender === 'female'
+                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        : 'bg-white text-gray-700 border-emerald-100 hover:border-emerald-300'
+                    ]"
+                  >
+                    여성
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 키, 몸무게 -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="height" class="block text-sm text-gray-700 mb-2">키 (cm)</label>
+                <div class="relative">
+                  <Ruler class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                  <input
+                    id="height"
+                    v-model="height"
+                    type="number"
+                    placeholder="170"
+                    class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                    required
+                    min="50"
+                    max="250"
+                  />
+                </div>
+              </div>
+              <div>
+                <label for="weight" class="block text-sm text-gray-700 mb-2">몸무게 (kg)</label>
+                <div class="relative">
+                  <Scale class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                  <input
+                    id="weight"
+                    v-model="weight"
+                    type="number"
+                    placeholder="65"
+                    class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                    required
+                    min="20"
+                    max="300"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 건강 정보 섹션 -->
+          <div class="pb-4 border-b border-gray-200">
+            <h3 class="text-lg text-gray-900 mb-4">건강 정보</h3>
+            
+            <!-- 활동량 -->
+            <div class="mb-4">
+              <label for="activityLevel" class="block text-sm text-gray-700 mb-2">활동량</label>
+              <div class="relative">
+                <Activity class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <select
+                  id="activityLevel"
+                  v-model="activityLevel"
+                  class="w-full pl-11 pr-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors appearance-none bg-white cursor-pointer"
+                  required
+                >
+                  <option value="1">1 - 거의 활동 없음 (주로 앉아서 생활)</option>
+                  <option value="2">2 - 가벼운 활동 (주 1-2회 운동)</option>
+                  <option value="3">3 - 보통 활동 (주 3-4회 운동)</option>
+                  <option value="4">4 - 활발한 활동 (주 5-6회 운동)</option>
+                  <option value="5">5 - 매우 활발함 (매일 격한 운동)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 당뇨 여부 -->
+            <div>
+              <label class="flex items-center gap-3 cursor-pointer p-4 bg-emerald-50/50 rounded-xl hover:bg-emerald-50 transition-colors">
+                <input
+                  v-model="hasDiabetes"
+                  type="checkbox"
+                  class="w-5 h-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span class="text-gray-700">당뇨병이 있습니다</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 약관 동의 -->
+          <div class="text-sm">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                class="w-4 h-4 mt-0.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                required
+              />
+              <span class="text-gray-600">
+                <a href="#" class="text-emerald-600 hover:text-emerald-700">이용약관</a> 및 
+                <a href="#" class="text-emerald-600 hover:text-emerald-700">개인정보처리방침</a>에 동의합니다.
+              </span>
+            </label>
+          </div>
+
+          <button
+            v-motion
+            :hovered="{ scale: 1.02 }"
+            :tapped="{ scale: 0.98 }"
+            type="submit"
+            class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+          >
+            회원가입
+          </button>
+        </form>
+
+        <!-- Login Link -->
+        <div class="mt-6 text-center text-sm">
+          <span class="text-gray-600">이미 계정이 있으신가요? </span>
+          <RouterLink to="/login" class="text-emerald-600 hover:text-emerald-700 font-semibold transition-colors">
+            로그인
+          </RouterLink>
+        </div>
+      </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome Modal (간단 버전) -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-300"
+        leave-active-class="transition-opacity duration-300"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showWelcome"
+          class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+        >
+          <div
+            v-motion
+            :initial="{ scale: 0.8, opacity: 0 }"
+            :enter="{ scale: 1, opacity: 1 }"
+            class="bg-white rounded-3xl shadow-2xl p-12 max-w-md text-center"
+          >
+            <div class="text-6xl mb-6">🎉</div>
+            <h2 class="text-2xl text-gray-900 mb-4">환영합니다!</h2>
+            <p class="text-gray-600">푸디와 함께 건강한 식단을 시작해보세요</p>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </div>
+</template>
