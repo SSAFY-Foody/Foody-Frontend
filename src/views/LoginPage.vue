@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { User, Lock } from 'lucide-vue-next'
 import logoImage from '@/assets/foody_logo.png'
 import { useAuthStore } from '@/stores/auth'
 import { showError } from '@/utils/errorHandler'
-import FindIdModal from '@/components/FindIdModal.vue'
-import FindPasswordModal from '@/components/FindPasswordModal.vue'
+
+// Lazy load modals for better performance
+const FindIdModal = defineAsyncComponent(() => import('@/components/FindIdModal.vue'))
+const FindPasswordModal = defineAsyncComponent(() => import('@/components/FindPasswordModal.vue'))
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -132,12 +134,9 @@ const handleGoogleLogin = () => {
           </div>
 
           <button
-            v-motion
-            :hovered="{ scale: 1.02 }"
-            :tapped="{ scale: 0.98 }"
             type="submit"
             :disabled="isLoading"
-            class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 rounded-xl shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ isLoading ? '로그인 중...' : '로그인' }}
           </button>
@@ -156,12 +155,9 @@ const handleGoogleLogin = () => {
         <!-- Social Login -->
         <div class="space-y-3">
           <button
-            v-motion
-            :hovered="{ scale: 1.02 }"
-            :tapped="{ scale: 0.98 }"
             type="button"
             @click="handleKakaoLogin"
-            class="w-full flex items-center justify-center gap-3 bg-[#FEE500] text-[#000000] py-3 rounded-xl hover:opacity-90 transition-opacity"
+            class="w-full flex items-center justify-center gap-3 bg-[#FEE500] text-[#000000] py-3 rounded-xl hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3c-4.97 0-9 3.582-9 8 0 1.988.78 3.82 2.082 5.285-.27 1.103-.97 3.114-1.053 3.348-.098.276.097.567.39.567.068 0 .136-.016.197-.046.91-.445 2.362-1.164 3.268-1.59C8.927 18.84 10.426 19 12 19c4.97 0 9-3.582 9-8s-4.03-8-9-8z"/>
@@ -170,12 +166,9 @@ const handleGoogleLogin = () => {
           </button>
 
           <button
-            v-motion
-            :hovered="{ scale: 1.02 }"
-            :tapped="{ scale: 0.98 }"
             type="button"
             @click="handleGoogleLogin"
-            class="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl hover:bg-gray-50 transition-colors"
+            class="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl hover:bg-gray-50 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
