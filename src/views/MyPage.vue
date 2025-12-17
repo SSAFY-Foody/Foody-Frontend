@@ -10,7 +10,8 @@ import { useAuthStore } from '@/stores/auth'
 import { userApi } from '@/api/user.api'
 import { reportApi } from '@/api/report.api'
 import { publicApi } from '@/api/public.api'
-import type { UserResponse, Report, ActivityLevelResponse } from '@/api/types'
+import { characterApi } from '@/api/character.api'
+import type { UserResponse, Report, ActivityLevelResponse, CharacterResponse } from '@/api/types'
 import { showError } from '@/utils/errorHandler'
 
 const router = useRouter()
@@ -21,6 +22,7 @@ const userData = ref<UserResponse | null>(null)
 const editedData = ref<UserResponse | null>(null)
 const reports = ref<Report[]>([])
 const activityLevels = ref<ActivityLevelResponse[]>([])
+const characters = ref<CharacterResponse[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 
@@ -49,6 +51,12 @@ const getActivityLevelDescription = (level: number) => {
   return found ? found.description : ''
 }
 
+// 캐릭터 정보 가져오기
+const getCharacterById = (characterId: number | null | undefined) => {
+  if (!characterId) return null
+  return characters.value.find(c => c.id === characterId) || null
+}
+
 // 사용자 정보 로드
 const loadUserInfo = async () => {
   try {
@@ -66,6 +74,15 @@ const loadActivityLevels = async () => {
     activityLevels.value = await publicApi.getActivityLevels()
   } catch (error) {
     console.error('Failed to load activity levels:', error)
+  }
+}
+
+// 캐릭터 목록 로드
+const loadCharacters = async () => {
+  try {
+    characters.value = await characterApi.getAllCharacters()
+  } catch (error) {
+    console.error('Failed to load characters:', error)
   }
 }
 
@@ -215,7 +232,7 @@ const handleChangePassword = async () => {
 }
 
 onMounted(async () => {
-  await Promise.all([loadUserInfo(), loadReports(), loadActivityLevels()])
+  await Promise.all([loadUserInfo(), loadReports(), loadActivityLevels(), loadCharacters()])
 })
 </script>
 
@@ -747,7 +764,7 @@ onMounted(async () => {
             :key="report.id"
             v-motion
             :hovered="{ scale: 1.02 }"
-            @click="router.push('/analyze/result')"
+            @click="router.push(`/analyze/result/${report.id}`)"
             class="border-2 border-gray-200 rounded-2xl p-6 hover:border-emerald-300 transition-all cursor-pointer relative group"
           >
             <!-- 삭제 버튼 -->
@@ -769,8 +786,16 @@ onMounted(async () => {
                 </div>
                 <div class="space-y-2">
                   <div class="flex items-center gap-2 text-sm text-gray-600">
-                    <span class="text-2xl">🌱</span>
-                    <span>캐릭터 ID: {{ report.characterId || 'N/A' }}</span>
+                    <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center flex-shrink-0">
+                      <img 
+                        v-if="getCharacterById(report.characterId)?.img" 
+                        :src="getCharacterById(report.characterId)!.img" 
+                        :alt="getCharacterById(report.characterId)!.name"
+                        class="w-full h-full object-cover"
+                      />
+                      <span v-else class="text-2xl">🌱</span>
+                    </div>
+                    <span>{{ getCharacterById(report.characterId)?.name || '기본 푸디' }}</span>
                   </div>
                   <p class="text-gray-700 bg-emerald-50 rounded-xl p-3 text-sm">
                     💬 {{ report.comment }}

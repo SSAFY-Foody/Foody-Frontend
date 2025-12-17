@@ -1,80 +1,155 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { User, Ruler, Weight, Activity, Calendar, TrendingUp, Apple, Trash2, List } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import NutritionGauge from '@/components/NutritionGauge.vue'
+import { reportApi } from '@/api/report.api'
+import { userApi } from '@/api/user.api'
+import { characterApi } from '@/api/character.api'
+import type { Report, CharacterResponse } from '@/api/types'
+import { showError } from '@/utils/errorHandler'
 
 const router = useRouter()
+const route = useRoute()
 
-// Mock 데이터
-const mockAnalysisResult = {
-  userId: 'user123',
-  userName: '김푸디',
-  userInfo: {
-    name: '김푸디',
-    age: 25,
-    height: 170,
-    weight: 65,
-    gender: 'female' as 'male' | 'female',
-    activityLevel: 'moderate' as 'low' | 'moderate' | 'high' | 'very-high'
-  },
-  score: 85,
-  comment: '훌륭한 식습관이에요! 단백질 섭취가 충분하고 균형잡힌 식단입니다. 다만 나트륨 섭취를 조금 줄이면 더욱 건강한 식단이 될 거예요. 이대로 꾸준히 유지하세요! 💚',
-  dailyTotals: {
-    calories: 1850,
-    carbs: 220,
-    protein: 95,
-    fat: 55,
-    sugar: 35,
-    sodium: 2100
-  },
-  recommended: {
-    calories: 2000,
-    carbs: 250,
-    protein: 80,
-    fat: 60,
-    sugar: 50,
-    sodium: 2000
-  },
-  characterId: 2,
-  characterName: '건강 푸디',
-  meals: [
-    {
-      mealTime: 'breakfast' as const,
-      foods: [
-        { id: '1', name: '현미밥', category: '밥류', calories: 300, carbs: 65, protein: 7, fat: 2, sugar: 0, sodium: 5, amount: 200 },
-        { id: '2', name: '계란후라이', category: '계란류', calories: 150, carbs: 1, protein: 13, fat: 11, sugar: 0, sodium: 140, amount: 100 }
-      ],
-      totals: { calories: 450, carbs: 66, protein: 20, fat: 13, sugar: 0, sodium: 145 }
-    },
-    {
-      mealTime: 'lunch' as const,
-      foods: [
-        { id: '3', name: '닭가슴살 샐러드', category: '샐러드', calories: 350, carbs: 25, protein: 45, fat: 10, sugar: 8, sodium: 650, amount: 300 },
-        { id: '4', name: '고구마', category: '간식', calories: 130, carbs: 30, protein: 2, fat: 0, sugar: 10, sodium: 20, amount: 150 }
-      ],
-      totals: { calories: 480, carbs: 55, protein: 47, fat: 10, sugar: 18, sodium: 670 }
-    },
-    {
-      mealTime: 'dinner' as const,
-      foods: [
-        { id: '5', name: '연어 스테이크', category: '생선류', calories: 400, carbs: 5, protein: 40, fat: 25, sugar: 2, sodium: 300, amount: 200 },
-        { id: '6', name: '브로콜리', category: '채소류', calories: 55, carbs: 11, protein: 5, fat: 0, sugar: 3, sodium: 50, amount: 150 },
-        { id: '7', name: '현미밥', category: '밥류', calories: 300, carbs: 65, protein: 7, fat: 2, sugar: 0, sodium: 5, amount: 200 }
-      ],
-      totals: { calories: 755, carbs: 81, protein: 52, fat: 27, sugar: 5, sodium: 355 }
-    },
-    {
-      mealTime: 'snack' as const,
-      foods: [
-        { id: '8', name: '그릭 요거트', category: '유제품', calories: 100, carbs: 8, protein: 10, fat: 3, sugar: 7, sodium: 60, amount: 150 },
-        { id: '9', name: '아몬드', category: '견과류', calories: 165, carbs: 10, protein: 6, fat: 14, sugar: 5, sodium: 200, amount: 30 }
-      ],
-      totals: { calories: 265, carbs: 18, protein: 16, fat: 17, sugar: 12, sodium: 260 }
+// State
+const isLoading = ref(true)
+const reportData = ref<Report | null>(null)
+const userName = ref('')
+const characterData = ref<CharacterResponse | null>(null)
+const allCharacters = ref<CharacterResponse[]>([])
+
+// Fetch report data
+onMounted(async () => {
+  try {
+    isLoading.value = true
+    
+    // Fetch all characters first
+    allCharacters.value = await characterApi.getAllCharacters()
+    
+    // Get report ID from route params or fetch the latest report
+    const reportId = route.params.id ? Number(route.params.id) : null
+    
+    let finalReportId: number
+    
+    if (reportId) {
+      finalReportId = reportId
+    } else {
+      // Fetch the latest report ID from list
+      const reports = await reportApi.getReportList(1)
+      if (reports && reports.length > 0) {
+        finalReportId = reports[0].id
+      } else {
+        throw new Error('분석 결과를 찾을 수 없습니다.')
+      }
     }
-  ],
-  analysisDate: new Date().toISOString()
-}
+    
+    // Fetch full report details including meals
+    reportData.value = await reportApi.getReportDetail(finalReportId)
+    
+    // Fetch user info for display
+    const user = await userApi.getMyInfo()
+    userName.value = user.name
+    
+    // Fetch character details if characterId exists
+    if (reportData.value?.characterId) {
+      characterData.value = allCharacters.value.find(
+        c => c.id === reportData.value!.characterId
+      ) || null
+    }
+    
+  } catch (error: any) {
+    console.error('Failed to load report:', error)
+    alert(showError(error))
+    router.push('/meal-management')
+  } finally {
+    isLoading.value = false
+  }
+})
+
+// Computed properties for display
+const analysisResult = computed(() => {
+  if (!reportData.value) return null
+  
+  const report = reportData.value
+  
+  // Map activity level number to string
+  const getActivityLevelKey = (level?: number): 'low' | 'moderate' | 'high' | 'very-high' => {
+    if (!level) return 'moderate'
+    if (level === 1) return 'low'
+    if (level === 2) return 'moderate'
+    if (level === 3) return 'high'
+    return 'very-high'
+  }
+  
+  return {
+    userId: report.userId,
+    userName: userName.value,
+    userInfo: {
+      name: userName.value,
+      age: report.userAge || 0,
+      height: report.userHeight || 0,
+      weight: report.userWeight || 0,
+      gender: report.userGender === 'M' ? 'male' as const : 'female' as const,
+      activityLevel: getActivityLevelKey(report.userActivityLevel)
+    },
+    score: report.score || 0,
+    comment: report.comment || 'AI 분석 결과가 없습니다.',
+    dailyTotals: {
+      calories: Math.round(report.totalKcal || 0),
+      carbs: Math.round((report.totalCarb || 0) * 10) / 10,
+      protein: Math.round((report.totalProtein || 0) * 10) / 10,
+      fat: Math.round((report.totalFat || 0) * 10) / 10,
+      sugar: Math.round((report.totalSugar || 0) * 10) / 10,
+      sodium: Math.round((report.totalNatrium || 0) * 10) / 10
+    },
+    recommended: {
+      calories: Math.round(report.userStdKcal || 2000),
+      carbs: Math.round((report.userStdCarb || 250) * 10) / 10,
+      protein: Math.round((report.userStdProtein || 80) * 10) / 10,
+      fat: Math.round((report.userStdFat || 60) * 10) / 10,
+      sugar: Math.round((report.userStdSugar || 50) * 10) / 10,
+      sodium: Math.round((report.userStdNatrium || 2000) * 10) / 10
+    },
+    characterId: report.characterId || 1,
+    characterName: characterData.value?.name || '기본 푸디',
+    characterImg: characterData.value?.img || '',
+    meals: (report.meals || []).map(meal => {
+      const mealTypeMap: Record<string, 'breakfast' | 'lunch' | 'dinner' | 'snack'> = {
+        'BREAKFAST': 'breakfast',
+        'LUNCH': 'lunch',
+        'DINNER': 'dinner',
+        'SNACK': 'snack'
+      }
+      
+      return {
+        mealTime: mealTypeMap[meal.mealType] || 'breakfast',
+        foods: (meal.mealFoods || []).map((mealFood, index) => ({
+          id: String(index),
+          name: mealFood.foodName || mealFood.userFoodName || '음식',
+          category: mealFood.foodCategory || '기타',
+          calories: Math.round((mealFood.eatenKcal || 0)),
+          carbs: Math.round((mealFood.eatenCarb || 0) * 10) / 10,
+          protein: Math.round((mealFood.eatenProtein || 0) * 10) / 10,
+          fat: Math.round((mealFood.eatenFat || 0) * 10) / 10,
+          sugar: Math.round((mealFood.eatenSugar || 0) * 10) / 10,
+          sodium: Math.round((mealFood.eatenNatrium || 0) * 10) / 10,
+          amount: Math.round(mealFood.eatenWeight || 0)
+        })),
+        totals: {
+          calories: Math.round(meal.totalKcal || 0),
+          carbs: Math.round((meal.totalCarb || 0) * 10) / 10,
+          protein: Math.round((meal.totalProtein || 0) * 10) / 10,
+          fat: Math.round((meal.totalFat || 0) * 10) / 10,
+          sugar: Math.round((meal.totalSugar || 0) * 10) / 10,
+          sodium: Math.round((meal.totalNatrium || 0) * 10) / 10
+        }
+      }
+    }),
+    analysisDate: report.createdAt || new Date().toISOString()
+  }
+})
 
 const mealTimeNames = {
   breakfast: '아침',
@@ -90,10 +165,17 @@ const activityLevelNames = {
   'very-high': '매우 높음'
 }
 
-const handleDeleteReport = () => {
+const handleDeleteReport = async () => {
+  if (!reportData.value) return
+  
   if (window.confirm('이 분석 레포트를 삭제하시겠습니까?')) {
-    alert('레포트가 삭제되었습니다.')
-    router.push('/my-page')
+    try {
+      await reportApi.deleteReport(reportData.value.id)
+      alert('레포트가 삭제되었습니다.')
+      router.push('/my-page')
+    } catch (error: any) {
+      alert(showError(error))
+    }
   }
 }
 
@@ -118,33 +200,43 @@ const getScoreGradient = (score: number) => {
   <div class="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-green-50">
     <Navbar />
 
-    <!-- 서브 헤더 -->
-    <div
-      v-motion
-      :initial="{ y: -20, opacity: 0 }"
-      :enter="{ y: 0, opacity: 1 }"
-      class="bg-white border-b border-gray-200"
-    >
-      <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h1 class="text-gray-900">식단 분석 결과</h1>
-        <div class="flex items-center gap-2">
-          <button
-            @click="router.push('/my-page')"
-            class="flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
-          >
-            <List :size="20" />
-            <span class="text-sm">레포트 목록</span>
-          </button>
-          <button
-            @click="handleDeleteReport"
-            class="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-          >
-            <Trash2 :size="20" />
-            <span class="text-sm">삭제</span>
-          </button>
-        </div>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex items-center justify-center min-h-[60vh]">
+      <div class="text-center">
+        <div class="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-gray-600">분석 결과를 불러오는 중...</p>
       </div>
     </div>
+
+    <!-- Content -->
+    <div v-else-if="analysisResult">
+      <!-- 서브 헤더 -->
+      <div
+        v-motion
+        :initial="{ y: -20, opacity: 0 }"
+        :enter="{ y: 0, opacity: 1 }"
+        class="bg-white border-b border-gray-200"
+      >
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 class="text-gray-900">식단 분석 결과</h1>
+          <div class="flex items-center gap-2">
+            <button
+              @click="router.push('/my-page')"
+              class="flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+            >
+              <List :size="20" />
+              <span class="text-sm">레포트 목록</span>
+            </button>
+            <button
+              @click="handleDeleteReport"
+              class="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+            >
+              <Trash2 :size="20" />
+              <span class="text-sm">삭제</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
     <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
       <!-- 점수 & 캐릭터 섹션 -->
@@ -167,25 +259,31 @@ const getScoreGradient = (score: number) => {
                 repeat: Infinity,
                 ease: 'easeInOut'
               }"
-              class="w-48 h-48 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-full flex items-center justify-center text-8xl"
+              class="w-48 h-48 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-full flex items-center justify-center overflow-hidden"
             >
-              🌱
-            </div>
-            <p class="text-center mt-4 text-gray-700">{{ mockAnalysisResult.characterName }}</p>
+              <img 
+                v-if="analysisResult.characterImg" 
+                :src="analysisResult.characterImg" 
+                :alt="analysisResult.characterName"
+                class="w-full h-full object-cover"
+              />
+              <span v-else class="text-8xl">🌱</span>
+              </div>
+            <p class="text-center mt-4 text-gray-700">{{ analysisResult.characterName }}</p>
           </div>
 
           <!-- 점수 & 코멘트 -->
           <div class="flex-1 space-y-4">
             <div>
-              <p class="text-sm text-gray-500 mb-2">{{ mockAnalysisResult.userName }}님의 식단 점수</p>
+              <p class="text-sm text-gray-500 mb-2">{{ analysisResult.userName }}님의 식단 점수</p>
               <div class="flex items-end gap-3">
                 <div
                   v-motion
                   :initial="{ scale: 0 }"
                   :enter="{ scale: 1, transition: { type: 'spring', delay: 300 } }"
-                  :class="getScoreColor(mockAnalysisResult.score)"
+                  :class="getScoreColor(analysisResult.score)"
                 >
-                  <span class="text-6xl">{{ mockAnalysisResult.score }}</span>
+                  <span class="text-6xl">{{ analysisResult.score }}</span>
                   <span class="text-3xl">점</span>
                 </div>
                 <span class="text-gray-400 text-xl mb-2">/ 100점</span>
@@ -197,8 +295,8 @@ const getScoreGradient = (score: number) => {
               <div
                 v-motion
                 :initial="{ width: '0%' }"
-                :enter="{ width: `${mockAnalysisResult.score}%`, transition: { duration: 1500, delay: 500 } }"
-                :class="['h-full bg-gradient-to-r', getScoreGradient(mockAnalysisResult.score)]"
+                :enter="{ width: `${analysisResult.score}%`, transition: { duration: 1500, delay: 500 } }"
+                :class="['h-full bg-gradient-to-r', getScoreGradient(analysisResult.score)]"
               ></div>
             </div>
 
@@ -208,7 +306,7 @@ const getScoreGradient = (score: number) => {
                 <span class="text-3xl flex-shrink-0">💬</span>
                 <div>
                   <p class="text-sm text-emerald-700 mb-2">AI 푸디의 코멘트</p>
-                  <p class="text-gray-700 leading-relaxed">{{ mockAnalysisResult.comment }}</p>
+                  <p class="text-gray-700 leading-relaxed">{{ analysisResult.comment }}</p>
                 </div>
               </div>
             </div>
@@ -231,43 +329,43 @@ const getScoreGradient = (score: number) => {
         <div class="grid md:grid-cols-2 gap-6">
           <NutritionGauge
             label="칼로리"
-            :current="mockAnalysisResult.dailyTotals.calories"
-            :recommended="mockAnalysisResult.recommended.calories"
+            :current="analysisResult.dailyTotals.calories"
+            :recommended="analysisResult.recommended.calories"
             unit="kcal"
             color="bg-gradient-to-r from-purple-500 to-pink-500"
           />
           <NutritionGauge
             label="탄수화물"
-            :current="mockAnalysisResult.dailyTotals.carbs"
-            :recommended="mockAnalysisResult.recommended.carbs"
+            :current="analysisResult.dailyTotals.carbs"
+            :recommended="analysisResult.recommended.carbs"
             unit="g"
             color="bg-gradient-to-r from-blue-500 to-cyan-500"
           />
           <NutritionGauge
             label="단백질"
-            :current="mockAnalysisResult.dailyTotals.protein"
-            :recommended="mockAnalysisResult.recommended.protein"
+            :current="analysisResult.dailyTotals.protein"
+            :recommended="analysisResult.recommended.protein"
             unit="g"
             color="bg-gradient-to-r from-emerald-500 to-green-500"
           />
           <NutritionGauge
             label="지방"
-            :current="mockAnalysisResult.dailyTotals.fat"
-            :recommended="mockAnalysisResult.recommended.fat"
+            :current="analysisResult.dailyTotals.fat"
+            :recommended="analysisResult.recommended.fat"
             unit="g"
             color="bg-gradient-to-r from-yellow-500 to-orange-500"
           />
           <NutritionGauge
             label="당류"
-            :current="mockAnalysisResult.dailyTotals.sugar"
-            :recommended="mockAnalysisResult.recommended.sugar"
+            :current="analysisResult.dailyTotals.sugar"
+            :recommended="analysisResult.recommended.sugar"
             unit="g"
             color="bg-gradient-to-r from-pink-500 to-rose-500"
           />
           <NutritionGauge
             label="나트륨"
-            :current="mockAnalysisResult.dailyTotals.sodium"
-            :recommended="mockAnalysisResult.recommended.sodium"
+            :current="analysisResult.dailyTotals.sodium"
+            :recommended="analysisResult.recommended.sodium"
             unit="mg"
             color="bg-gradient-to-r from-indigo-500 to-purple-500"
           />
@@ -291,7 +389,7 @@ const getScoreGradient = (score: number) => {
             <Calendar :size="32" class="text-blue-600" />
             <div>
               <p class="text-xs text-gray-600">나이</p>
-              <p class="text-gray-900">{{ mockAnalysisResult.userInfo.age }}세</p>
+              <p class="text-gray-900">{{ analysisResult.userInfo.age }}세</p>
             </div>
           </div>
 
@@ -299,7 +397,7 @@ const getScoreGradient = (score: number) => {
             <Ruler :size="32" class="text-purple-600" />
             <div>
               <p class="text-xs text-gray-600">키</p>
-              <p class="text-gray-900">{{ mockAnalysisResult.userInfo.height }}cm</p>
+              <p class="text-gray-900">{{ analysisResult.userInfo.height }}cm</p>
             </div>
           </div>
 
@@ -307,7 +405,7 @@ const getScoreGradient = (score: number) => {
             <Weight :size="32" class="text-green-600" />
             <div>
               <p class="text-xs text-gray-600">몸무게</p>
-              <p class="text-gray-900">{{ mockAnalysisResult.userInfo.weight }}kg</p>
+              <p class="text-gray-900">{{ analysisResult.userInfo.weight }}kg</p>
             </div>
           </div>
 
@@ -315,7 +413,7 @@ const getScoreGradient = (score: number) => {
             <User :size="32" class="text-pink-600" />
             <div>
               <p class="text-xs text-gray-600">성별</p>
-              <p class="text-gray-900">{{ mockAnalysisResult.userInfo.gender === 'male' ? '남성' : '여성' }}</p>
+              <p class="text-gray-900">{{ analysisResult.userInfo.gender === 'male' ? '남성' : '여성' }}</p>
             </div>
           </div>
 
@@ -323,7 +421,7 @@ const getScoreGradient = (score: number) => {
             <Activity :size="32" class="text-orange-600" />
             <div>
               <p class="text-xs text-gray-600">활동량</p>
-              <p class="text-gray-900">{{ activityLevelNames[mockAnalysisResult.userInfo.activityLevel] }}</p>
+              <p class="text-gray-900">{{ activityLevelNames[analysisResult.userInfo.activityLevel] }}</p>
             </div>
           </div>
 
@@ -331,7 +429,7 @@ const getScoreGradient = (score: number) => {
             <Calendar :size="32" class="text-yellow-600" />
             <div>
               <p class="text-xs text-gray-600">분석일</p>
-              <p class="text-gray-900 text-sm">{{ new Date(mockAnalysisResult.analysisDate).toLocaleDateString() }}</p>
+              <p class="text-gray-900 text-sm">{{ new Date(analysisResult.analysisDate).toLocaleDateString() }}</p>
             </div>
           </div>
         </div>
@@ -351,7 +449,7 @@ const getScoreGradient = (score: number) => {
 
         <div class="space-y-6">
           <div
-            v-for="(meal, index) in mockAnalysisResult.meals"
+            v-for="(meal, index) in analysisResult.meals"
             :key="meal.mealTime"
             v-motion
             :initial="{ opacity: 0, x: -20 }"
@@ -413,6 +511,7 @@ const getScoreGradient = (score: number) => {
           푸디 도감 보기
         </button>
       </div>
+    </div>
     </div>
   </div>
 </template>
