@@ -21,7 +21,7 @@ const searchFood = async () => {
       currentPage.value,
       keyword.value || undefined
     )
-    foodList.value = data
+    foodList.value = data.content
   } catch (error) {
     errorMessage.value = showError(error)
   } finally {
