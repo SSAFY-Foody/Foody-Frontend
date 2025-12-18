@@ -111,7 +111,7 @@ const analysisResult = computed(() => {
       protein: Math.round((report.userStdProtein || 80) * 10) / 10,
       fat: Math.round((report.userStdFat || 60) * 10) / 10,
       sugar: Math.round((report.userStdSugar || 50) * 10) / 10,
-      sodium: Math.round((report.userStdNatrium || 2000) * 10) / 10
+      sodium: Math.round((report.userStdNatrium || 2) * 10) / 10
     },
     characterId: report.characterId || null,
     characterName: characterData.value?.name || '분석 중..',
@@ -283,7 +283,7 @@ const getScoreGradient = (score: number) => {
               <img 
                 :src="analysisResult.characterImg" 
                 :alt="analysisResult.characterName"
-                class="w-full h-full object-cover"
+                class="w-full h-full object-contain"
               />
               </div>
             <p class="text-center mt-4 text-gray-700">{{ analysisResult.characterName }}</p>
@@ -383,7 +383,7 @@ const getScoreGradient = (score: number) => {
             label="나트륨"
             :current="analysisResult.dailyTotals.sodium"
             :recommended="analysisResult.recommended.sodium"
-            unit="mg"
+            unit="g"
             color="bg-gradient-to-r from-indigo-500 to-purple-500"
           />
         </div>
