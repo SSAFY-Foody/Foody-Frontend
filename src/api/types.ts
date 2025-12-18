@@ -170,18 +170,77 @@ export interface ReportRequest {
     meals: ReportMealItem[]
 }
 
+export interface MealFood {
+    id: number
+    mealId: number
+    foodCode?: string
+    userFoodCode?: number
+    eatenWeight: number
+    // Calculated nutrition values
+    eatenKcal?: number
+    eatenCarb?: number
+    eatenProtein?: number
+    eatenFat?: number
+    eatenSugar?: number
+    eatenNatrium?: number
+    // Food details (joined from food table)
+    foodName?: string
+    foodCategory?: string
+    userFoodName?: string
+}
+
+export interface Meal {
+    id: number
+    reportId: number
+    mealType: 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'
+    totalKcal?: number
+    totalCarb?: number
+    totalProtein?: number
+    totalFat?: number
+    totalSugar?: number
+    totalNatrium?: number
+    mealFoods?: MealFood[]
+}
+
 export interface Report {
     id: number
     userId: string
     createdAt: string
+    
+    // Analysis results
+    score?: number
+    characterId?: number
+    comment?: string
+    isWaited: boolean
+    
+    // Daily totals
     totalKcal: number
     totalCarb: number
     totalProtein: number
     totalFat: number
-    score?: number
-    characterId?: number
-    comment?: string
-    status: 'WAITING' | 'COMPLETED'
+    totalSugar?: number
+    totalNatrium?: number
+    
+    // User info at time of report
+    userAge?: number
+    userHeight?: number
+    userWeight?: number
+    userGender?: string
+    userActivityLevel?: number
+    
+    // User standard nutrition values
+    userStdWeight?: number
+    userStdKcal?: number
+    userStdCarb?: number
+    userStdProtein?: number
+    userStdFat?: number
+    userStdSugar?: number
+    userStdNatrium?: number
+    
+    // Meal details
+    meals?: Meal[]
+    
+    status?: 'WAITING' | 'COMPLETED'
 }
 
 export interface ReportDetailResponse {

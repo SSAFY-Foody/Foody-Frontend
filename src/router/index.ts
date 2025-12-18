@@ -29,7 +29,7 @@ const router = createRouter({
             component: () => import('@/views/FoodSearchPage.vue')
         },
         {
-            path: '/analyze/result',
+            path: '/analyze/result/:id?',
             name: 'analysis-result',
             component: () => import('@/views/AnalysisResultPage.vue')
         },
