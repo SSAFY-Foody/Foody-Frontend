@@ -169,19 +169,29 @@ export interface ReportRequest {
     isWaited: boolean
     meals: ReportMealItem[]
 }
+// 공통 페이지네이션 응답
+export interface PageResponse<T> {
+    content: T[]
+    page: number
+    size: number
+    totalElements: number
+    totalPages: number
+}
 
+// 레포트 API 관련
 export interface ReportListResponse {
     id: number
-    score: number
-    comment: string // 추가됨
-    characterId: number
-    isWaited: boolean
-    totalKcal: number
-    totalCarb: number
-    totalProtein: number
-    totalFat: number
-    totalSugar: number
-    totalNatrium: number
+    userId: string
+    score?: number
+    comment?: string
+    characterId?: number
+    isWaited?: boolean
+    totalKcal?: number
+    totalCarb?: number
+    totalProtein?: number
+    totalFat?: number
+    totalSugar?: number
+    totalNatrium?: number
     createdAt: string
 }
 
