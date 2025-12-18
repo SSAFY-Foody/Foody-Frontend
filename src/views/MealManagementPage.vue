@@ -177,6 +177,11 @@ const handleChooseAI = async () => {
   } catch (error: any) {
     isAnalysisLoadingModalOpen.value = false
     
+    // 401 에러는 client.ts의 인터셉터에서 이미 처리함 (alert + redirect)
+    if (error.response?.status === 401) {
+      return
+    }
+    
     // GUEST 권한 등 추가 정보 필요 시 처리
     if (error.response?.status === 403 && error.response?.data?.code === 'NEED_ADDITIONAL_INFO') {
       alert('식단 분석을 위해서 추가 정보를 입력해주세요.')

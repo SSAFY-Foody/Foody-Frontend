@@ -31,6 +31,10 @@ apiClient.interceptors.response.use(
             // Token expired or invalid
             localStorage.removeItem('token')
             localStorage.removeItem('isLoggedIn')
+            localStorage.removeItem('userRole')
+
+            // 사용자에게 알림
+            alert('로그인이 필요합니다.')
             window.location.href = '/login'
         }
         return Promise.reject(error)
