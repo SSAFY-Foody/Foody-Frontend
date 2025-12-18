@@ -3,15 +3,9 @@ import type {
     FoodResponse,
     AiFoodResponse,
     FavoriteRequest,
-    FavoriteResponse
+    FavoriteResponse,
+    PageResponse
 } from './types'
-
-export interface FoodListResponse {
-    content: FoodResponse[]
-    totalCount: number
-    currentPage: number
-    totalPages: number
-}
 
 /**
  * 음식 관련 API
@@ -27,8 +21,8 @@ export const foodApi = {
         page: number = 1,
         keyword?: string,
         category?: string
-    ): Promise<FoodListResponse> {
-        const response = await apiClient.get<FoodListResponse>('/food/', {
+    ): Promise<PageResponse<FoodResponse>> {
+        const response = await apiClient.get<PageResponse<FoodResponse>>('/food/', {
             params: { page, keyword, category }
         })
         return response.data

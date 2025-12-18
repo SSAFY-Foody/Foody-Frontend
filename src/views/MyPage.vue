@@ -43,7 +43,6 @@ const showConfirmPassword = ref(false)
 const startDate = ref('')
 const endDate = ref('')
 const currentPage = ref(1)
-const itemsPerPage = 6
 
 // 활동량 설명 가져오기
 const getActivityLevelDescription = (level: number) => {
@@ -91,12 +90,14 @@ const loadCharacters = async () => {
 const loadReports = async () => {
   isLoading.value = true
   try {
-    const data = await reportApi.getReportList(
-      1, // 모든 페이지 로드 (또는 필요에 따라 페이징)
+    const response = await reportApi.getReportList(
+      currentPage.value,
       startDate.value || undefined,
       endDate.value || undefined
     )
-    reports.value = data
+    // PageResponse 구조 분해
+    reports.value = response.content
+    totalPages.value = response.totalPages
   } catch (error: any) {
     // GUEST가 레포트 조회 시 발생하는 403 에러는 무시 (이미 Info 탭에서 경고를 보여주고 있음)
     if (error.response?.status === 403 && error.response?.data?.code === 'NEED_ADDITIONAL_INFO') {
@@ -108,29 +109,23 @@ const loadReports = async () => {
   }
 }
 
-const filteredReports = computed(() => {
-  return reports.value.filter((report) => {
-    const reportDate = new Date(report.createdAt)
-    const start = startDate.value ? new Date(startDate.value) : null
-    const end = endDate.value ? new Date(endDate.value) : null
-    if (start && reportDate < start) return false
-    if (end && reportDate > end) return false
-    return true
-  })
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredReports.value.length / itemsPerPage)))
-
+// 클라이언트 사이드 필터링 Computed 제거 (서버에서 필터링됨)
 const currentReports = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredReports.value.slice(start, end)
+  return reports.value
 })
 
-const handlePageChange = (page: number) => {
+const totalPages = ref(1) // 서버에서 받아올 총 페이지 수
+
+const handlePageChange = async (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
+    await loadReports() // 페이지 변경 시 서버 요청
   }
+}
+
+const handleSearch = async () => {
+  currentPage.value = 1
+  await loadReports()
 }
 
 const handleResetFilter = async () => {
@@ -725,6 +720,12 @@ onMounted(async () => {
                 class="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
               />
               <button
+                @click="handleSearch"
+                class="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors"
+              >
+                조회
+              </button>
+              <button
                 @click="handleResetFilter"
                 class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
               >
@@ -842,9 +843,9 @@ onMounted(async () => {
           <!-- 빈 상태 -->
           <div v-if="currentReports.length === 0" class="text-center py-12">
             <FileText :size="64" class="text-gray-300 mx-auto mb-4" />
-            <p class="text-gray-500 mb-2">{{ filteredReports.length === 0 ? '검색 결과가 없습니다.' : '레포트가 없습니다.' }}</p>
+            <p class="text-gray-500 mb-2">{{ (startDate || endDate) ? '검색 결과가 없습니다.' : '레포트가 없습니다.' }}</p>
             <button
-              v-if="filteredReports.length === 0 && (startDate || endDate)"
+              v-if="(startDate || endDate)"
               @click="handleResetFilter"
               class="mt-4 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
             >

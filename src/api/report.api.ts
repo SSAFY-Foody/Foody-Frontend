@@ -1,5 +1,10 @@
 import apiClient from './client'
-import type { ReportResponse, ReportListResponse, ReportRequest } from './types'
+import type {
+    ReportRequest,
+    ReportListResponse,
+    ReportResponse,
+    PageResponse
+} from './types'
 
 /**
  * 레포트 관련 API
@@ -24,10 +29,12 @@ export const reportApi = {
         page: number = 1,
         startDate?: string,
         endDate?: string
-    ): Promise<ReportListResponse[]> {
-        const response = await apiClient.get<ReportListResponse[]>('/report', {
-            params: { page, startDate, endDate }
-        })
+    ): Promise<PageResponse<ReportListResponse>> {
+        const params: any = { page }
+        if (startDate) params.startDate = startDate
+        if (endDate) params.endDate = endDate
+
+        const response = await apiClient.get<PageResponse<ReportListResponse>>('/report', { params })
         return response.data
     },
 

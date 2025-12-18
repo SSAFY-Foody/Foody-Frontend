@@ -38,9 +38,9 @@ onMounted(async () => {
       finalReportId = reportId
     } else {
       // Fetch the latest report ID from list
-      const reports = await reportApi.getReportList(1)
-      if (reports && reports.length > 0) {
-        finalReportId = reports[0].id
+      const response = await reportApi.getReportList(1)
+      if (response && response.content.length > 0) {
+        finalReportId = response.content[0].id
       } else {
         throw new Error('분석 결과를 찾을 수 없습니다.')
       }
