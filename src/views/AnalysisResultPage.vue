@@ -93,7 +93,8 @@ const analysisResult = computed(() => {
       height: report.userHeight || 0,
       weight: report.userWeight || 0,
       gender: report.userGender === 'M' ? 'male' as const : 'female' as const,
-      activityLevel: getActivityLevelKey(report.userActivityLevel)
+      activityLevel: getActivityLevelKey(report.userActivityLevel),
+      isDiabetes: report.userIsDiabetes
     },
     score: report.score || 0,
     comment: report.comment || 'AI 분석 결과가 없습니다.',
@@ -256,8 +257,23 @@ const getScoreGradient = (score: number) => {
         </div>
       </div>
 
+      <!-- 당뇨 환자 경고 배너 -->
+      <div 
+        v-if="analysisResult?.userInfo.isDiabetes"
+        class="bg-red-50 border-y border-red-200"
+      >
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
+          <div class="bg-red-100 p-2 rounded-full flex-shrink-0 animate-pulse">
+            <span class="text-xl">⚠️</span>
+          </div>
+          <div>
+            <h3 class="text-red-900 font-bold">당뇨 환자 주의 알림</h3>
+            <p class="text-red-700 text-sm">본 결과는 참고용이며, 정확한 진단과 처방은 반드시 전문의와 상담하시기 바랍니다.</p>
+          </div>
+        </div>
+      </div>
 
-    <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
       <!-- 점수 & 캐릭터 섹션 -->
       <div
         v-motion

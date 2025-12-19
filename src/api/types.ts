@@ -249,6 +249,7 @@ export interface ReportResponse {
     userWeight: number
     userGender: string
     userActivityLevel: number
+    userIsDiabetes: boolean
 
     // User standard
     userStdWeight: number
@@ -318,6 +319,8 @@ export interface WaitingReportResponse {
     totalCarb: number
     totalProtein: number
     totalFat: number
+    totalSugar: number
+    totalNatrium: number
 }
 
 export interface UpdateWaitingReportRequest {

@@ -1,83 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { 
   Shield, Users, Apple, Activity, FileText,
-  Save, X, Plus, Trash2, Edit2
+  Save, X, Plus, Trash2, Edit2, ChevronDown, ChevronUp, Search, Check
 } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import { adminApi } from '@/api/admin.api'
-
-interface ActivityLevel {
-  level: number
-  value: number
-  description: string
-}
-
-interface WaitingReport {
-  id: number
-  userId: string
-  userName: string
-  createdAt: string
-  totalCalories: number
-  carbs: number
-  protein: number
-  fat: number
-}
-
-interface Food {
-  code: string
-  name: string
-  category: string
-  standard: string
-  kcal: number
-  carb: number
-  protein: number
-  fat: number
-  sugar: number
-  natrium: number
-}
-
-// Mock 데이터
-const mockActivityLevels: ActivityLevel[] = [
-  { level: 1, value: 1.2, description: '거의 활동 없음 (주로 앉아서 생활)' },
-  { level: 2, value: 1.375, description: '가벼운 활동 (주 1-2회 운동)' },
-  { level: 3, value: 1.55, description: '보통 활동 (주 3-4회 운동)' },
-  { level: 4, value: 1.725, description: '활발한 활동 (주 5-6회 운동)' },
-  { level: 5, value: 1.9, description: '매우 활발함 (매일 격한 운동)' },
-]
-
-const mockWaitingReports: WaitingReport[] = [
-  {
-    id: 1,
-    userId: 'user123',
-    userName: '김푸디',
-    createdAt: '2024-12-15',
-    totalCalories: 1850,
-    carbs: 200,
-    protein: 80,
-    fat: 50,
-  },
-  {
-    id: 2,
-    userId: 'user456',
-    userName: '이푸디',
-    createdAt: '2024-12-14',
-    totalCalories: 2100,
-    carbs: 250,
-    protein: 90,
-    fat: 60,
-  },
-]
-
-const activeTab = ref<'role' | 'food' | 'activity' | 'report'>('report')
+import { foodApi } from '@/api/food.api'
+import { reportApi } from '@/api/report.api'
+import { characterApi } from '@/api/character.api'
+import type { 
+  FoodRequest, 
+  ActivityLevelResponse, 
+  WaitingReportResponse,
+  ReportResponse,
+  CharacterResponse
+} from '@/api/types'
+import FoodSearchModal from '@/components/FoodSearchModal.vue'
 
 // 권한 관리
+const activeTab = ref<'role' | 'food' | 'activity' | 'report'>('report') // 기본 탭: 레포트
 const targetUserId = ref('')
 const targetRole = ref<'ROLE_USER' | 'ROLE_ADMIN'>('ROLE_USER')
 const isUpdatingRole = ref(false)
 
 // 음식 관리
-const newFood = ref<Food>({
+const isAddingFood = ref(false)
+const isRegisterOpen = ref(false)
+const isDeleteOpen = ref(false)
+const showSearchModal = ref(false)
+
+const newFood = ref<FoodRequest>({
   code: '',
   name: '',
   category: '',
@@ -89,18 +42,64 @@ const newFood = ref<Food>({
   sugar: 0,
   natrium: 0,
 })
-const deleteCode = ref('')
+
+const categories = ref<string[]>([])
 
 // 활동 레벨 관리
-const activityLevels = ref<ActivityLevel[]>([...mockActivityLevels])
-const editingLevel = ref<ActivityLevel | null>(null)
+const activityLevels = ref<ActivityLevelResponse[]>([])
+const editingLevel = ref<ActivityLevelResponse | null>(null)
 
 // 레포트 관리
-const waitingReports = ref<WaitingReport[]>([...mockWaitingReports])
-const selectedReport = ref<WaitingReport | null>(null)
-const reportScore = ref('')
-const reportCharacterId = ref('1')
+const waitingReports = ref<WaitingReportResponse[]>([]) // 대기 목록
+const selectedReportId = ref<number | null>(null)
+const reportDetail = ref<ReportResponse | null>(null) // 상세 정보
+const characters = ref<CharacterResponse[]>([]) // 캐릭터 목록
+const isLoadingDetail = ref(false)
+
+const reportScore = ref<number | ''>('')
+const reportCharacterId = ref<number | null>(null)
 const reportComment = ref('')
+
+// 데이터 로드 함수들
+const loadActivityLevels = async () => {
+  try {
+    activityLevels.value = await adminApi.getAllActivityLevels()
+  } catch (error) {
+    console.error('활동 레벨 로드 실패:', error)
+  }
+}
+
+const loadWaitingReports = async () => {
+  try {
+    waitingReports.value = await adminApi.getWaitingReports()
+  } catch (error) {
+    console.error('대기 레포트 로드 실패:', error)
+  }
+}
+
+const loadCharacters = async () => {
+  if (characters.value.length > 0) return
+  try {
+    characters.value = await characterApi.getAllCharacters()
+  } catch (error) {
+    console.error('캐릭터 로드 실패:', error)
+  }
+}
+
+onMounted(async () => {
+  try {
+    const [cats, levels, reports] = await Promise.all([
+      foodApi.getCategories(),
+      adminApi.getAllActivityLevels(),
+      adminApi.getWaitingReports()
+    ])
+    categories.value = cats
+    activityLevels.value = levels
+    waitingReports.value = reports
+  } catch (error) {
+    console.error('데이터 로드 실패:', error)
+  }
+})
 
 // 권한 수정 핸들러
 const handleUpdateRole = async () => {
@@ -122,11 +121,10 @@ const handleUpdateRole = async () => {
     targetRole.value = 'ROLE_USER'
   } catch (error: any) {
     console.error('권한 수정 실패 사유:', error)
-    // 서버에서 보내는 에러 메시지 추출
     const errorMessage = 
-      error.response?.data?.message ||  // Spring Boot 기본 형식
-      error.response?.data ||            // 문자열로 직접 반환된 경우
-      error.message ||                   // axios 에러 메시지
+      error.response?.data?.message || 
+      error.response?.data || 
+      error.message || 
       '알 수 없는 오류가 발생했습니다'
     alert(`권한 수정에 실패했습니다: ${errorMessage}`)
   } finally {
@@ -135,63 +133,146 @@ const handleUpdateRole = async () => {
 }
 
 // 음식 등록 핸들러
-const handleAddFood = () => {
+const handleAddFood = async () => {
   if (!newFood.value.code || !newFood.value.name) {
     alert('음식 코드와 이름은 필수입니다.')
     return
   }
-  alert(`음식 ${newFood.value.name}이(가) 등록되었습니다.`)
-  newFood.value = {
-    code: '',
-    name: '',
-    category: '',
-    standard: '',
-    kcal: 0,
-    carb: 0,
-    protein: 0,
-    fat: 0,
-    sugar: 0,
-    natrium: 0,
-  }
-}
 
-// 음식 삭제 핸들러
-const handleDeleteFood = () => {
-  if (!deleteCode.value) {
-    alert('삭제할 음식 코드를 입력해주세요.')
-    return
+  try {
+    isAddingFood.value = true
+    await adminApi.addFood(newFood.value)
+    alert(`음식 ${newFood.value.name}이(가) 등록되었습니다.`)
+    
+    // 폼 초기화
+    newFood.value = {
+      code: '',
+      name: '',
+      category: '',
+      standard: '',
+      kcal: 0,
+      carb: 0,
+      protein: 0,
+      fat: 0,
+      sugar: 0,
+      natrium: 0,
+    }
+  } catch (error: any) {
+    console.error('음식 등록 실패:', error)
+    let errorMessage = 
+      error.response?.data?.message || 
+      error.response?.data || 
+      error.message || 
+      '알 수 없는 오류가 발생했습니다'
+    
+    if (typeof errorMessage === 'object') {
+      errorMessage = Object.values(errorMessage).join('\n')
+    }
+
+    alert(`음식 등록에 실패했습니다:\n${errorMessage}`)
+  } finally {
+    isAddingFood.value = false
   }
-  if (!window.confirm(`음식 코드 ${deleteCode.value}를 삭제하시겠습니까?`)) {
-    return
-  }
-  alert(`음식 코드 ${deleteCode.value}가 삭제되었습니다.`)
-  deleteCode.value = ''
 }
 
 // 활동 레벨 수정 핸들러
-const handleUpdateActivityLevel = () => {
+const handleUpdateActivityLevel = async () => {
   if (!editingLevel.value) return
   
-  activityLevels.value = activityLevels.value.map((al) =>
-    al.level === editingLevel.value!.level ? editingLevel.value! : al
-  )
-  alert('활동 레벨이 수정되었습니다.')
-  editingLevel.value = null
+  try {
+    await adminApi.updateActivityLevel({
+      level: editingLevel.value.level,
+      value: editingLevel.value.value,
+      description: editingLevel.value.description
+    })
+    
+    alert('활동 레벨이 수정되었습니다.')
+    await loadActivityLevels() // 목록 새로고침
+    editingLevel.value = null
+  } catch (error: any) {
+    console.error('활동 레벨 수정 실패:', error)
+     const errorMessage = 
+      error.response?.data?.message || 
+      error.response?.data || 
+      error.message || 
+      '알 수 없는 오류가 발생했습니다'
+    alert(`수정 실패: ${errorMessage}`)
+  }
 }
 
-// 레포트 작성 핸들러
-const handleSubmitReport = () => {
-  if (!selectedReport.value) return
-  if (!reportScore.value || !reportComment.value) {
-    alert('점수와 코멘트를 입력해주세요.')
+// 레포트 상세 보기 및 작성 모드 진입
+const handleSelectReport = async (reportId: number) => {
+  selectedReportId.value = reportId
+  isLoadingDetail.value = true
+  
+  try {
+    // 상세 정보 및 캐릭터 목록 로드
+    const [detail] = await Promise.all([
+      reportApi.getReportDetail(reportId),
+      loadCharacters()
+    ])
+    reportDetail.value = detail
+    
+    // 초기화
+    reportScore.value = ''
+    reportCharacterId.value = null
+    reportComment.value = ''
+    
+  } catch (error) {
+    console.error('레포트 상세 로드 실패:', error)
+    alert('레포트 상세 정보를 불러오는데 실패했습니다.')
+    selectedReportId.value = null
+  } finally {
+    isLoadingDetail.value = false
+  }
+}
+
+// 레포트 작성 제출
+const handleSubmitReport = async () => {
+  if (!selectedReportId.value) return
+  
+  if (reportScore.value === '' || !reportCharacterId.value || !reportComment.value) {
+    alert('점수, 캐릭터, 코멘트를 모두 입력해주세요.')
     return
   }
-  alert('레포트가 작성되었습니다.')
-  waitingReports.value = waitingReports.value.filter((r) => r.id !== selectedReport.value!.id)
-  selectedReport.value = null
-  reportScore.value = ''
-  reportCharacterId.value = '1'
-  reportComment.value = ''
+
+  try {
+    await adminApi.updateWaitingReport({
+      id: selectedReportId.value,
+      score: Number(reportScore.value),
+      characterId: reportCharacterId.value,
+      comment: reportComment.value
+    })
+
+    alert('레포트 분석이 완료되었습니다.')
+    
+    // 목록 갱신 및 초기화
+    await loadWaitingReports()
+    selectedReportId.value = null
+    reportDetail.value = null
+    
+  } catch (error: any) {
+    console.error('레포트 작성 실패:', error)
+    let errorMessage = 
+      error.response?.data?.message || 
+      error.response?.data || 
+      error.message ||
+      '알 수 없는 오류가 발생했습니다'
+
+    if (typeof errorMessage === 'object') {
+      // 객체인 경우 (Validation 에러 등) 보기 좋게 변환
+      errorMessage = Object.entries(errorMessage)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n')
+    }
+
+    alert(`레포트 작성 실패:\n${errorMessage}`)
+  }
+}
+
+const closeReportDetail = () => {
+  selectedReportId.value = null
+  reportDetail.value = null
 }
 </script>
 
@@ -221,6 +302,18 @@ const handleSubmitReport = () => {
         :enter="{ opacity: 1, y: 0 }"
         class="bg-white rounded-2xl shadow-md p-2 mb-8 grid grid-cols-2 md:grid-cols-4 gap-2"
       >
+        <button
+          @click="activeTab = 'report'"
+          :class="[
+            'py-3 px-4 rounded-xl transition-all text-sm md:text-base',
+            activeTab === 'report'
+              ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          ]"
+        >
+          <FileText :size="20" class="inline-block mr-1 md:mr-2" />
+          레포트 관리
+        </button>
         <button
           @click="activeTab = 'role'"
           :class="[
@@ -256,18 +349,6 @@ const handleSubmitReport = () => {
         >
           <Activity :size="20" class="inline-block mr-1 md:mr-2" />
           활동 레벨
-        </button>
-        <button
-          @click="activeTab = 'report'"
-          :class="[
-            'py-3 px-4 rounded-xl transition-all text-sm md:text-base',
-            activeTab === 'report'
-              ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
-              : 'text-gray-700 hover:bg-gray-100'
-          ]"
-        >
-          <FileText :size="20" class="inline-block mr-1 md:mr-2" />
-          레포트 관리
         </button>
       </div>
 
@@ -329,141 +410,165 @@ const handleSubmitReport = () => {
         class="space-y-6"
       >
         <!-- 음식 등록 -->
-        <div class="bg-white rounded-3xl shadow-lg p-8 border-2 border-emerald-100">
-          <h2 class="text-gray-900 mb-6 flex items-center gap-2">
-            <Plus :size="24" class="text-emerald-600" />
-            음식 등록
-          </h2>
-
-          <div class="grid md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">음식 코드 *</label>
-              <input
-                v-model="newFood.code"
-                type="text"
-                placeholder="예: F001"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">음식명 *</label>
-              <input
-                v-model="newFood.name"
-                type="text"
-                placeholder="예: 김치볶음밥"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">카테고리</label>
-              <input
-                v-model="newFood.category"
-                type="text"
-                placeholder="예: 한식"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">기준량</label>
-              <input
-                v-model="newFood.standard"
-                type="text"
-                placeholder="예: 100g"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">칼로리 (kcal)</label>
-              <input
-                v-model.number="newFood.kcal"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">탄수화물 (g)</label>
-              <input
-                v-model.number="newFood.carb"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">단백질 (g)</label>
-              <input
-                v-model.number="newFood.protein"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">지방 (g)</label>
-              <input
-                v-model.number="newFood.fat"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">당류 (g)</label>
-              <input
-                v-model.number="newFood.sugar"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">나트륨 (mg)</label>
-              <input
-                v-model.number="newFood.natrium"
-                type="number"
-                class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
-              />
-            </div>
-          </div>
-
-          <button
-            @click="handleAddFood"
-            class="w-full mt-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+        <div class="bg-white rounded-3xl shadow-lg border-2 border-emerald-100 overflow-hidden transition-all duration-300">
+          <button 
+            @click="isRegisterOpen = !isRegisterOpen"
+            class="w-full flex items-center justify-between p-8 hover:bg-emerald-50/50 transition-colors"
           >
-            <Plus :size="20" />
-            음식 등록
+            <h2 class="text-gray-900 flex items-center gap-2">
+              <Plus :size="24" class="text-emerald-600" />
+              음식 등록
+            </h2>
+            <component :is="isRegisterOpen ? ChevronUp : ChevronDown" :size="24" class="text-gray-400" />
           </button>
+
+          <div v-show="isRegisterOpen" class="px-8 pb-8">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">음식 코드 *</label>
+                <input
+                  v-model="newFood.code"
+                  type="text"
+                  placeholder="예: F001"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">음식명 *</label>
+                <input
+                  v-model="newFood.name"
+                  type="text"
+                  placeholder="예: 김치볶음밥"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">카테고리</label>
+                <select
+                  v-model="newFood.category"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors bg-white"
+                >
+                  <option value="" disabled>선택하세요</option>
+                  <option v-for="cat in categories" :key="cat" :value="cat">
+                    {{ cat }}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">기준량</label>
+                <input
+                  v-model="newFood.standard"
+                  type="text"
+                  placeholder="예: 100g"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">칼로리 (kcal)</label>
+                <input
+                  v-model.number="newFood.kcal"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">탄수화물 (g)</label>
+                <input
+                  v-model.number="newFood.carb"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">단백질 (g)</label>
+                <input
+                  v-model.number="newFood.protein"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">지방 (g)</label>
+                <input
+                  v-model.number="newFood.fat"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">당류 (g)</label>
+                <input
+                  v-model.number="newFood.sugar"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">나트륨 (g)</label>
+                <input
+                  v-model.number="newFood.natrium"
+                  type="number"
+                  class="w-full px-4 py-3 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              @click="handleAddFood"
+              :disabled="isAddingFood"
+              :class="[
+                'w-full mt-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2',
+                isAddingFood ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              <Plus :size="20" :class="{ 'animate-spin': isAddingFood && !newFood.code }" />
+              {{ isAddingFood ? '등록 중...' : '음식 등록' }}
+            </button>
+          </div>
         </div>
 
-        <!-- 음식 삭제 -->
-        <div class="bg-white rounded-3xl shadow-lg p-8 border-2 border-red-100">
-          <h2 class="text-gray-900 mb-6 flex items-center gap-2">
-            <Trash2 :size="24" class="text-red-600" />
-            음식 삭제
-          </h2>
+        <!-- 음식 삭제 및 관리 -->
+        <div class="bg-white rounded-3xl shadow-lg border-2 border-red-100 overflow-hidden transition-all duration-300">
+          <button 
+            @click="isDeleteOpen = !isDeleteOpen"
+            class="w-full flex items-center justify-between p-8 hover:bg-red-50/50 transition-colors"
+          >
+            <h2 class="text-gray-900 flex items-center gap-2">
+              <Trash2 :size="24" class="text-red-600" />
+              음식 삭제 및 관리
+            </h2>
+            <component :is="isDeleteOpen ? ChevronUp : ChevronDown" :size="24" class="text-gray-400" />
+          </button>
 
-          <div class="flex gap-4">
-            <input
-              v-model="deleteCode"
-              type="text"
-              placeholder="삭제할 음식 코드를 입력하세요"
-              class="flex-1 px-4 py-3 border-2 border-red-100 rounded-xl focus:outline-none focus:border-red-400 transition-colors"
-            />
+          <div v-show="isDeleteOpen" class="px-8 pb-8">
+            <p class="text-gray-600 mb-4">음식을 검색하여 삭제하거나 관리할 수 있습니다.</p>
             <button
-              @click="handleDeleteFood"
-              class="px-6 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors flex items-center gap-2"
+              @click="showSearchModal = true"
+              class="w-full py-3 bg-white border-2 border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-all flex items-center justify-center gap-2"
             >
-              <Trash2 :size="20" />
-              삭제
+              <Search :size="20" />
+              음식 검색 및 관리 메뉴 열기
             </button>
           </div>
         </div>
       </div>
+
+      <!-- 음식 검색 모달 (삭제용) -->
+      <FoodSearchModal
+        :is-open="showSearchModal"
+        meal-time="snack"
+        @close="showSearchModal = false"
+        @add-food="() => {}"
+      />
 
       <!-- 활동 레벨 관리 탭 -->
       <div
@@ -555,6 +660,7 @@ const handleSubmitReport = () => {
       </div>
 
       <!-- 레포트 관리 탭 -->
+      <!-- 레포트 관리 탭 -->
       <div
         v-if="activeTab === 'report'"
         v-motion
@@ -594,95 +700,290 @@ const handleSubmitReport = () => {
                   <p class="text-sm text-gray-600">{{ report.createdAt }}</p>
                 </div>
                 <button
-                  @click="selectedReport = report"
+                  @click="handleSelectReport(report.id)"
                   class="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors"
                 >
                   분석 작성
                 </button>
               </div>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-sm">
                 <div class="text-center p-3 bg-gray-50 rounded-xl">
                   <p class="text-gray-600 mb-1">칼로리</p>
-                  <p class="text-gray-900">{{ report.totalCalories }} kcal</p>
+                  <p class="text-gray-900">{{ report.totalKcal?.toFixed(1) }} kcal</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-xl">
                   <p class="text-gray-600 mb-1">탄수화물</p>
-                  <p class="text-gray-900">{{ report.carbs }} g</p>
+                  <p class="text-gray-900">{{ report.totalCarb?.toFixed(1) }} g</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-xl">
                   <p class="text-gray-600 mb-1">단백질</p>
-                  <p class="text-gray-900">{{ report.protein }} g</p>
+                  <p class="text-gray-900">{{ report.totalProtein?.toFixed(1) }} g</p>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded-xl">
                   <p class="text-gray-600 mb-1">지방</p>
-                  <p class="text-gray-900">{{ report.fat }} g</p>
+                  <p class="text-gray-900">{{ report.totalFat?.toFixed(1) }} g</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-xl">
+                  <p class="text-gray-600 mb-1">당류</p>
+                  <p class="text-gray-900">{{ report.totalSugar?.toFixed(1) }} g</p>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-xl">
+                  <p class="text-gray-600 mb-1">나트륨</p>
+                  <p class="text-gray-900">{{ report.totalNatrium?.toFixed(1) }} g</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 레포트 작성 폼 -->
-        <div v-if="selectedReport" class="bg-white rounded-3xl shadow-lg p-8 border-2 border-blue-100">
+        <!-- 레포트 작성 폼 (상세) -->
+        <div v-if="selectedReportId" class="bg-white rounded-3xl shadow-lg p-8 border-2 border-blue-100">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-gray-900 flex items-center gap-2">
               <Edit2 :size="24" class="text-blue-600" />
-              레포트 작성 - {{ selectedReport.userName }}
+              레포트 상세 분석
             </h2>
             <button
-              @click="() => {
-                selectedReport = null
-                reportScore = ''
-                reportCharacterId = '1'
-                reportComment = ''
-              }"
+              @click="closeReportDetail"
               class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X :size="20" />
             </button>
           </div>
 
-          <div class="space-y-4">
-            <div class="grid md:grid-cols-2 gap-4">
+          <div v-if="isLoadingDetail" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-500">상세 정보를 불러오는 중...</p>
+          </div>
+
+          <div v-else-if="reportDetail" class="space-y-8">
+            <!-- 유저 정보 -->
+            <div class="bg-gray-50 p-6 rounded-2xl">
+               <div class="flex justify-between items-center mb-4">
+                 <h3 class="font-bold text-gray-800">사용자 정보</h3>
+                 <span 
+                   v-if="reportDetail.userIsDiabetes"
+                   class="px-3 py-1 bg-red-100 text-red-600 rounded-full text-sm font-bold"
+                 >
+                   당뇨 환자
+                 </span>
+               </div>
+               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                 <div>
+                   <span class="text-gray-500">성별:</span> 
+                   {{ reportDetail.userGender === 'M' ? '남성' : '여성' }}
+                 </div>
+                 <div>
+                   <span class="text-gray-500">나이:</span> {{ reportDetail.userAge }}세
+                 </div>
+                 <div>
+                   <span class="text-gray-500">키/몸무게:</span> 
+                   {{ reportDetail.userHeight }}cm / {{ reportDetail.userWeight }}kg
+                 </div>
+                 <div>
+                   <span class="text-gray-500">활동레벨:</span> {{ reportDetail.userActivityLevel }}
+                 </div>
+               </div>
+            </div>
+
+            <!-- 영양 섭취 분석 (게이지 바) -->
+            <div>
+               <h3 class="font-bold text-gray-800 mb-4">영양 섭취 분석 (섭취량 / 권장량)</h3>
+               <div class="grid md:grid-cols-2 gap-6">
+                 <!-- 칼로리 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">칼로리</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalKcal?.toFixed(0) }} / {{ reportDetail.userStdKcal?.toFixed(0) }} kcal
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalKcal / reportDetail.userStdKcal) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+
+                 <!-- 탄수화물 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">탄수화물</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalCarb?.toFixed(1) }} / {{ reportDetail.userStdCarb?.toFixed(1) }} g
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-blue-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalCarb / reportDetail.userStdCarb) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+
+                 <!-- 단백질 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">단백질</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalProtein?.toFixed(1) }} / {{ reportDetail.userStdProtein?.toFixed(1) }} g
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalProtein / reportDetail.userStdProtein) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+
+                 <!-- 지방 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">지방</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalFat?.toFixed(1) }} / {{ reportDetail.userStdFat?.toFixed(1) }} g
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-yellow-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalFat / reportDetail.userStdFat) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+
+                 <!-- 당류 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">당류</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalSugar?.toFixed(1) }} / {{ reportDetail.userStdSugar?.toFixed(1) }} g
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-orange-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalSugar / reportDetail.userStdSugar) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+
+                 <!-- 나트륨 -->
+                 <div class="space-y-2">
+                   <div class="flex justify-between text-sm">
+                     <span class="font-medium text-gray-700">나트륨</span>
+                     <span class="text-gray-500">
+                       {{ reportDetail.totalNatrium?.toFixed(1) }} / {{ reportDetail.userStdNatrium?.toFixed(1) }} g
+                     </span>
+                   </div>
+                   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                     <div 
+                       class="h-full bg-red-500 rounded-full transition-all duration-500"
+                       :style="{ width: Math.min((reportDetail.totalNatrium / reportDetail.userStdNatrium) * 100, 100) + '%' }"
+                     ></div>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            <!-- 식단 요약 -->
+            <div>
+               <h3 class="font-bold text-gray-800 mb-4">식단 요약</h3>
+               <div class="space-y-4">
+                 <div v-for="meal in reportDetail.meals" :key="meal.id" class="border rounded-xl p-4">
+                   <div class="flex justify-between items-center mb-2">
+                     <span class="font-bold text-emerald-700">
+                       {{ 
+                         meal.mealType === 'BREAKFAST' ? '아침' : 
+                         meal.mealType === 'LUNCH' ? '점심' : 
+                         meal.mealType === 'DINNER' ? '저녁' : '간식' 
+                       }}
+                     </span>
+                     <div class="text-sm text-gray-500 flex flex-wrap gap-2">
+                       <span>{{ meal.totalKcal?.toFixed(0) }} kcal</span>
+                       <span class="text-gray-300">|</span>
+                       <span>탄: {{ meal.totalCarb?.toFixed(1) }}g</span>
+                       <span class="text-gray-300">|</span>
+                       <span>단: {{ meal.totalProtein?.toFixed(1) }}g</span>
+                       <span class="text-gray-300">|</span>
+                       <span>지: {{ meal.totalFat?.toFixed(1) }}g</span>
+                       <span class="text-gray-300">|</span>
+                       <span>당: {{ meal.totalSugar?.toFixed(1) }}g</span>
+                       <span class="text-gray-300">|</span>
+                       <span>나: {{ meal.totalNatrium?.toFixed(1) }}g</span>
+                     </div>
+                   </div>
+                   <div class="flex flex-wrap gap-2">
+                     <span 
+                       v-for="food in meal.mealFoods" 
+                       :key="food.id"
+                       class="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"
+                     >
+                       {{ food.foodName || food.userFoodName }} ({{ food.eatenWeight }}g)
+                     </span>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            <hr class="border-gray-200" />
+
+            <!-- 분석 입력 폼 -->
+            <div class="space-y-6">
+              <h3 class="font-bold text-gray-800">분석 내용 작성</h3>
+              
               <div>
-                <label class="block text-sm text-gray-700 mb-2">점수 *</label>
+                <label class="block text-sm text-gray-700 mb-2">점수 (0-100)</label>
                 <input
-                  v-model="reportScore"
+                  v-model.number="reportScore"
                   type="number"
                   min="0"
                   max="100"
-                  placeholder="0-100 사이의 점수"
-                  class="w-full px-4 py-3 border-2 border-blue-100 rounded-xl focus:outline-none focus:border-blue-400 transition-colors"
+                  placeholder="점수를 입력하세요"
+                  class="w-32 px-4 py-3 border-2 border-blue-100 rounded-xl focus:outline-none focus:border-blue-400"
                 />
               </div>
+
               <div>
-                <label class="block text-sm text-gray-700 mb-2">캐릭터 ID</label>
-                <select
-                  v-model="reportCharacterId"
-                  class="w-full px-4 py-3 border-2 border-blue-100 rounded-xl focus:outline-none focus:border-blue-400 transition-colors bg-white"
-                >
-                  <option v-for="id in 10" :key="id" :value="id">캐릭터 {{ id }}</option>
-                </select>
+                <label class="block text-sm text-gray-700 mb-2">캐릭터 선택</label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div
+                    v-for="char in characters"
+                    :key="char.id"
+                    @click="reportCharacterId = char.id"
+                    :class="[
+                      'p-2 rounded-xl border-2 cursor-pointer transition-all text-center',
+                      reportCharacterId === char.id
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-blue-300'
+                    ]"
+                  >
+                    <img :src="char.img" alt="Character" class="w-full h-24 object-contain mb-2" />
+                    <p class="text-xs font-medium">{{ char.name }}</p>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label class="block text-sm text-gray-700 mb-2">전문가 코멘트 *</label>
-              <textarea
-                v-model="reportComment"
-                placeholder="전문가의 상세한 피드백을 작성하세요..."
-                rows="6"
-                class="w-full px-4 py-3 border-2 border-blue-100 rounded-xl focus:outline-none focus:border-blue-400 transition-colors resize-none"
-              ></textarea>
-            </div>
+              <div>
+                <label class="block text-sm text-gray-700 mb-2">전문가 코멘트</label>
+                <textarea
+                  v-model="reportComment"
+                  placeholder="상세한 피드백을 작성하세요..."
+                  rows="6"
+                  class="w-full px-4 py-3 border-2 border-blue-100 rounded-xl focus:outline-none focus:border-blue-400 resize-none"
+                ></textarea>
+              </div>
 
-            <button
-              @click="handleSubmitReport"
-              class="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              <Save :size="20" />
-              레포트 제출
-            </button>
+              <button
+                @click="handleSubmitReport"
+                class="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 font-bold text-lg"
+              >
+                <Save :size="24" />
+                분석 완료 및 전송
+              </button>
+            </div>
           </div>
         </div>
       </div>
