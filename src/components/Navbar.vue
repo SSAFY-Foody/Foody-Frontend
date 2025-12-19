@@ -62,6 +62,17 @@ const isActive = (path: string) => {
             식단 분석
           </button>
           <button
+            @click="router.push('/favorites')"
+            :class="[
+              'px-4 py-2 rounded-xl transition-all',
+              isActive('/favorites') 
+                ? 'bg-emerald-100 text-emerald-700' 
+                : 'text-gray-700 hover:bg-gray-100'
+            ]"
+          >
+            좋아하는 음식
+          </button>
+          <button
             @click="router.push('/characters')"
             :class="[
               'px-4 py-2 rounded-xl transition-all',
