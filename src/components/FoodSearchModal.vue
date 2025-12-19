@@ -172,9 +172,7 @@ const toggleFavorite = async (food: Food) => {
       await store.removeFavorite(favoriteId)
     }
   } else {
-    // 직접 입력 음식인 경우 isUserFood=true 전달
-    const isUserFood = food.category === '직접 입력'
-    await store.addFavorite(food.code, isUserFood)
+    await store.addFavorite(food.code)
   }
 }
 
