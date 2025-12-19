@@ -514,6 +514,7 @@ const handleSubmit = async (e: Event) => {
                     min="1"
                     step="0.1"
                   />
+                  <span class="absolute right-4 top-1/3 -translate-y-1/3 mt-0.5 text-gray-500">cm</span>
                 </div>
               </div>
               <div>
@@ -530,6 +531,7 @@ const handleSubmit = async (e: Event) => {
                     min="1"
                     step="0.1"
                   />
+                  <span class="absolute right-4 top-1/3 -translate-y-1/3 mt-0.5 text-gray-500">kg</span>
                 </div>
               </div>
             </div>

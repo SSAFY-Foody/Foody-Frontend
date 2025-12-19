@@ -499,7 +499,7 @@ onMounted(async () => {
                       : 'bg-gray-50 border-gray-200 text-gray-700'
                   ]"
                 />
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">cm</span>
+                <span class="absolute right-4 top-1/3 -translate-y-1/3 mt-0.5 text-gray-500">cm</span>
               </div>
             </div>
 
@@ -521,7 +521,7 @@ onMounted(async () => {
                       : 'bg-gray-50 border-gray-200 text-gray-700'
                   ]"
                 />
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">kg</span>
+                <span class="absolute right-4 top-1/3 -translate-y-1/3 mt-0.5 text-gray-500">kg</span>
               </div>
             </div>
             
