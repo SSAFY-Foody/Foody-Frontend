@@ -5,6 +5,9 @@ import { foodApi } from '@/api/food.api'
 import type { Food, MealTime } from '@/types/food'
 import AddFoodManually from './AddFoodManually.vue'
 import AddFoodByImage from './AddFoodByImage.vue'
+import { useFavoriteStore } from '@/stores/favorites'
+
+const store = useFavoriteStore()
 
 const ITEMS_PER_PAGE = 8
 
@@ -32,7 +35,7 @@ const searchQuery = ref('')
 const selectedCategory = ref('전체')
 const currentPage = ref(1)
 const foodAmounts = ref<Record<string, number | null>>({})
-const favoriteFoods = ref<string[]>([])
+// const favoriteFoods = ref<string[]>([]) // Removed in favor of store
 const customFoods = ref<Food[]>([])
 const showManualAdd = ref(false)
 const showImageAdd = ref(false)
@@ -101,11 +104,8 @@ const loadCategories = async () => {
 }
 
 onMounted(async () => {
-  // 찜한 음식 & 커스텀 음식 불러오기
-  const savedFavorites = localStorage.getItem('favoriteFoods')
-  if (savedFavorites) {
-    favoriteFoods.value = JSON.parse(savedFavorites)
-  }
+  // 찜한 음식 목록 불러오기 (API)
+  await store.fetchFavorites()
 
   const savedCustomFoods = localStorage.getItem('customFoods')
   if (savedCustomFoods) {
@@ -131,25 +131,35 @@ watch(currentPage, async () => {
   await loadFoods()
 })
 
-const toggleFavorite = (foodCode: string) => {
-  if (favoriteFoods.value.includes(foodCode)) {
-    favoriteFoods.value = favoriteFoods.value.filter(code => code !== foodCode)
+const toggleFavorite = async (foodCode: string) => {
+  if (store.isFavorite(foodCode)) {
+    const favoriteId = store.findFavoriteIdByCode(foodCode)
+    if (favoriteId) {
+      await store.removeFavorite(favoriteId)
+    }
   } else {
-    favoriteFoods.value = [...favoriteFoods.value, foodCode]
+    // 일반 음식으로 가정하고 추가
+    // TODO: 사용자 정의 음식일 경우 구분 로직 필요
+    await store.addFavorite(foodCode)
   }
-  localStorage.setItem('favoriteFoods', JSON.stringify(favoriteFoods.value))
 }
 
 // 전체 음식 목록 (API + customFoods)
 const allFoods = computed(() => {
   // 특별 카테고리 처리
   if (selectedCategory.value === '찜한 음식') {
-    // 찜한 음식만 표시 (apiFoods와 customFoods 모두에서)
-    // customFoods는 id를 쓸 수도 있지만 API 호환성을 위해 code로 통일하는 것이 좋음 
-    // (여기서는 customFoods 타입을 확인해야 하지만, 일단 code로 시도)
-    return [...customFoods.value, ...apiFoods.value].filter(food => 
-      favoriteFoods.value.includes(food.code)
-    )
+    return store.favorites.map(fav => ({
+      code: fav.foodCode || (fav.userFoodCode ? fav.userFoodCode.toString() : ''),
+      name: fav.name,
+      category: '찜한 음식',
+      servingSize: fav.standard,
+      calories: fav.kcal,
+      carbs: fav.carb,
+      protein: fav.protein,
+      fat: fav.fat,
+      sugar: fav.sugar,
+      sodium: fav.natrium
+    }))
   }
   
   if (selectedCategory.value === '직접 입력') {
@@ -371,7 +381,7 @@ const handleImageAdd = (food: Food, amount: number) => {
                   <Heart
                     :size="20"
                     :class="[
-                      favoriteFoods.includes(food.code) ? 'text-red-500 fill-red-500' : 'text-gray-400'
+                      store.isFavorite(food.code) ? 'text-red-500 fill-red-500' : 'text-gray-400'
                     ]"
                   />
                 </button>
