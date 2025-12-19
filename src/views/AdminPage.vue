@@ -28,13 +28,7 @@ interface WaitingReport {
 }
 
 // Mock 데이터
-const mockActivityLevels: ActivityLevel[] = [
-  { level: 1, value: 1.2, description: '거의 활동 없음 (주로 앉아서 생활)' },
-  { level: 2, value: 1.375, description: '가벼운 활동 (주 1-2회 운동)' },
-  { level: 3, value: 1.55, description: '보통 활동 (주 3-4회 운동)' },
-  { level: 4, value: 1.725, description: '활발한 활동 (주 5-6회 운동)' },
-  { level: 5, value: 1.9, description: '매우 활발함 (매일 격한 운동)' },
-]
+
 
 
 const mockWaitingReports: WaitingReport[] = [
@@ -88,16 +82,9 @@ const newFood = ref<FoodRequest>({
 
 const categories = ref<string[]>([])
 
-onMounted(async () => {
-  try {
-    categories.value = await foodApi.getCategories()
-  } catch (error) {
-    console.error('카테고리 로드 실패:', error)
-  }
-})
 
 // 활동 레벨 관리
-const activityLevels = ref<ActivityLevel[]>([...mockActivityLevels])
+const activityLevels = ref<ActivityLevel[]>([])
 const editingLevel = ref<ActivityLevel | null>(null)
 
 // 레포트 관리
@@ -106,6 +93,28 @@ const selectedReport = ref<WaitingReport | null>(null)
 const reportScore = ref('')
 const reportCharacterId = ref('1')
 const reportComment = ref('')
+
+// 데이터 로드
+const loadActivityLevels = async () => {
+  try {
+    activityLevels.value = await adminApi.getAllActivityLevels()
+  } catch (error) {
+    console.error('활동 레벨 로드 실패:', error)
+  }
+}
+
+onMounted(async () => {
+  try {
+    const [cats, levels] = await Promise.all([
+      foodApi.getCategories(),
+      adminApi.getAllActivityLevels()
+    ])
+    categories.value = cats
+    activityLevels.value = levels
+  } catch (error) {
+    console.error('데이터 로드 실패:', error)
+  }
+})
 
 // 권한 수정 핸들러
 const handleUpdateRole = async () => {
@@ -189,14 +198,28 @@ const handleAddFood = async () => {
 
 
 // 활동 레벨 수정 핸들러
-const handleUpdateActivityLevel = () => {
+const handleUpdateActivityLevel = async () => {
   if (!editingLevel.value) return
   
-  activityLevels.value = activityLevels.value.map((al) =>
-    al.level === editingLevel.value!.level ? editingLevel.value! : al
-  )
-  alert('활동 레벨이 수정되었습니다.')
-  editingLevel.value = null
+  try {
+    await adminApi.updateActivityLevel({
+      level: editingLevel.value.level,
+      value: editingLevel.value.value,
+      description: editingLevel.value.description
+    })
+    
+    alert('활동 레벨이 수정되었습니다.')
+    await loadActivityLevels() // 목록 새로고침
+    editingLevel.value = null
+  } catch (error: any) {
+    console.error('활동 레벨 수정 실패:', error)
+     const errorMessage = 
+      error.response?.data?.message || 
+      error.response?.data || 
+      error.message || 
+      '알 수 없는 오류가 발생했습니다'
+    alert(`수정 실패: ${errorMessage}`)
+  }
 }
 
 // 레포트 작성 핸들러
@@ -242,6 +265,18 @@ const handleSubmitReport = () => {
         class="bg-white rounded-2xl shadow-md p-2 mb-8 grid grid-cols-2 md:grid-cols-4 gap-2"
       >
         <button
+          @click="activeTab = 'report'"
+          :class="[
+            'py-3 px-4 rounded-xl transition-all text-sm md:text-base',
+            activeTab === 'report'
+              ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          ]"
+        >
+          <FileText :size="20" class="inline-block mr-1 md:mr-2" />
+          레포트 관리
+        </button>
+        <button
           @click="activeTab = 'role'"
           :class="[
             'py-3 px-4 rounded-xl transition-all text-sm md:text-base',
@@ -276,18 +311,6 @@ const handleSubmitReport = () => {
         >
           <Activity :size="20" class="inline-block mr-1 md:mr-2" />
           활동 레벨
-        </button>
-        <button
-          @click="activeTab = 'report'"
-          :class="[
-            'py-3 px-4 rounded-xl transition-all text-sm md:text-base',
-            activeTab === 'report'
-              ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
-              : 'text-gray-700 hover:bg-gray-100'
-          ]"
-        >
-          <FileText :size="20" class="inline-block mr-1 md:mr-2" />
-          레포트 관리
         </button>
       </div>
 
