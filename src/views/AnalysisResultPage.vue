@@ -482,7 +482,7 @@ const getScoreGradient = (score: number) => {
                 <span class="text-emerald-600">단백질 {{ meal.totals.protein }}g</span>
                 <span class="text-orange-600">지방 {{ meal.totals.fat }}g</span>
                 <span class="text-pink-600">당 {{ meal.totals.sugar }}g</span>
-                <span class="text-indigo-600">나트륨 {{ meal.totals.sodium }}mg</span>
+                <span class="text-indigo-600">나트륨 {{ meal.totals.sodium }}g</span>
               </div>
             </div>
 
@@ -504,14 +504,14 @@ const getScoreGradient = (score: number) => {
                   <span class="text-emerald-600">단백질 {{ food.protein }}g</span>
                   <span class="text-orange-600">지방 {{ food.fat }}g</span>
                   <span class="text-pink-600">당 {{ food.sugar }}g</span>
-                  <span class="text-indigo-600">나트륨 {{ food.sodium }}mg</span>
+                  <span class="text-indigo-600">나트륨 {{ food.sodium }}g</span>
                 </div>
               </div>
             </div>
             
             <!-- 음식이 없을 경우 메시지 -->
             <div v-else class="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              입력한 음식이 없습니다.
+              음식이 없습니다.
             </div>
           </div>
         </div>
