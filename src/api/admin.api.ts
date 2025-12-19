@@ -30,6 +30,14 @@ export const adminApi = {
     },
 
     /**
+     * 음식 수정
+     */
+    async updateFood(data: FoodRequest): Promise<string> {
+        const response = await apiClient.patch<string>('/admin/food', data)
+        return response.data
+    },
+
+    /**
      * 음식 삭제
      */
     async deleteFood(code: string): Promise<string> {

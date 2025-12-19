@@ -1,15 +1,18 @@
+
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Search, X, Plus, Heart, ChevronLeft, ChevronRight, Upload } from 'lucide-vue-next'
+import { Search, X, Plus, Heart, ChevronLeft, ChevronRight, Upload, Trash2, Edit2, Save, ArrowLeft } from 'lucide-vue-next'
 import { foodApi } from '@/api/food.api'
+import { adminApi } from '@/api/admin.api'
 import type { Food, MealTime } from '@/types/food'
+import type { FoodRequest } from '@/api/types'
 import AddFoodManually from './AddFoodManually.vue'
 import AddFoodByImage from './AddFoodByImage.vue'
 import { useFavoriteStore } from '@/stores/favorites'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useFavoriteStore()
-
-const ITEMS_PER_PAGE = 8
+const authStore = useAuthStore()
 
 const MEAL_LABELS: Record<MealTime, string> = {
   breakfast: '아침',
@@ -276,6 +279,96 @@ const handleImageAdd = (food: Food, amount: number) => {
   emit('add-food', food, amount)
   // 이미지 모달은 닫지 않음 (여러 음식 추가 가능)
 }
+
+const handleDeleteFood = async (foodCode: string) => {
+  if (!confirm('정말 이 음식을 삭제하시겠습니까?')) return
+
+  try {
+    // 1. API 요청
+    await adminApi.deleteFood(foodCode)
+    
+    // 2. UI 즉시 반영 (낙관적 업데이트) - 로컬 리스트에서 제거
+    apiFoods.value = apiFoods.value.filter(f => f.code !== foodCode)
+    
+    // 3. 서버 데이터 동기화
+    await loadFoods()
+  } catch (error) {
+    console.error('음식 삭제 실패:', error)
+    alert('음식 삭제에 실패했습니다.')
+    // 실패시 롤백 혹은 위에서 에러 처리로 중단되므로 괜찮음
+  }
+}
+
+// === 수정 관련 로직 ===
+const isEditing = ref(false)
+const editForm = ref<FoodRequest>({
+  code: '',
+  name: '',
+  category: '',
+  standard: '',
+  kcal: 0,
+  carb: 0,
+  protein: 0,
+  fat: 0,
+  sugar: 0,
+  natrium: 0,
+})
+const isUpdating = ref(false)
+
+// 카테고리 로드 (onMounted에서 이미 호출되므로 중복 제거)
+// onMounted(async () => {
+//   try {
+//     categories.value = await foodApi.getCategories()
+//   } catch (error) {
+//     console.error('카테고리 로드 실패:', error)
+//   }
+// })
+
+const startEdit = (food: Food) => {
+  editForm.value = {
+    code: food.code,
+    name: food.name,
+    category: food.category,
+    standard: food.servingSize, // servingSize -> standard 매핑
+    kcal: food.calories,        // calories -> kcal
+    carb: food.carbs || 0,
+    protein: food.protein || 0,
+    fat: food.fat || 0,
+    sugar: food.sugar || 0,
+    natrium: food.sodium || 0, // sodium -> natrium
+  }
+  // Food 타입의 속성과 FoodRequest의 속성이 다름 (Food는 UI용, FoodRequest는 API용)
+  // Food 타입 정의를 확인해 봐야 더 정확한 매핑 가능. 
+  // 현재 Food 타입을 보면: carbs: string, protein: string... 'g'가 붙어있을 수 있음.
+  // parseFloat로 숫자만 추출.
+  
+  isEditing.value = true
+}
+
+const cancelEdit = () => {
+  isEditing.value = false
+  editForm.value = {
+      code: '', name: '', category: '', standard: '',
+      kcal: 0, carb: 0, protein: 0, fat: 0, sugar: 0, natrium: 0
+  }
+}
+
+const handleUpdateFood = async () => {
+  if (!editForm.value.name) return
+  
+  try {
+    isUpdating.value = true
+    await adminApi.updateFood(editForm.value)
+    alert('음식 정보가 수정되었습니다.')
+    isEditing.value = false
+    await loadFoods() // 목록 갱신
+  } catch (error: any) {
+    console.error('수정 실패:', error)
+    alert('수정 실패: ' + (error.response?.data?.message || '알 수 없는 오류'))
+  } finally {
+    isUpdating.value = false
+  }
+}
 </script>
 
 <template>
@@ -319,7 +412,96 @@ const handleImageAdd = (food: Food, amount: number) => {
         </div>
 
         <!-- Content -->
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
+        
+        <!-- 수정 폼 (isEditing일 때 표시) -->
+        <div v-if="isEditing" class="max-w-xl mx-auto">
+          <button 
+            @click="cancelEdit"
+            class="mb-4 flex items-center text-gray-600 hover:text-emerald-600 transition-colors"
+          >
+            <ArrowLeft :size="20" class="mr-1" />
+            목록으로 돌아가기
+          </button>
+          
+          <div class="space-y-4 bg-white p-6 rounded-2xl shadow-sm border border-emerald-100">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+              <Edit2 :size="24" class="mr-2 text-emerald-600" />
+              음식 정보 수정
+            </h3>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="col-span-2">
+                 <label class="block text-sm text-gray-600 mb-1">음식 코드</label>
+                 <input v-model="editForm.code" disabled class="w-full px-4 py-2 bg-gray-100 rounded-lg text-gray-500" />
+              </div>
+              
+              <div class="col-span-2">
+                 <label class="block text-sm text-gray-600 mb-1">음식명</label>
+                 <input v-model="editForm.name" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+
+               <div class="col-span-2">
+                <label class="block text-sm text-gray-600 mb-1">카테고리</label>
+                <select v-model="editForm.category" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500 bg-white">
+                  <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+              </div>
+
+              <div>
+                 <label class="block text-sm text-gray-600 mb-1">기준량</label>
+                 <input v-model="editForm.standard" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+              
+              <div>
+                 <label class="block text-sm text-gray-600 mb-1">칼로리 (kcal)</label>
+                 <input v-model.number="editForm.kcal" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">탄수화물 (g)</label>
+                 <input v-model.number="editForm.carb" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">단백질 (g)</label>
+                 <input v-model.number="editForm.protein" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">지방 (g)</label>
+                 <input v-model.number="editForm.fat" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">당류 (g)</label>
+                 <input v-model.number="editForm.sugar" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+               
+               <div>
+                 <label class="block text-sm text-gray-600 mb-1">나트륨 (g)</label>
+                 <input v-model.number="editForm.natrium" type="number" class="w-full px-4 py-2 border border-emerald-100 rounded-lg focus:outline-none focus:border-emerald-500" />
+              </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+              <button @click="cancelEdit" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium">
+                취소
+              </button>
+              <button 
+                @click="handleUpdateFood" 
+                :disabled="isUpdating"
+                class="flex-1 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 font-medium flex justify-center items-center gap-2"
+              >
+                <Save :size="20" />
+                {{ isUpdating ? '저장 중...' : '저장하기' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 기존 목록 (isEditing 아닐 때만 표시) -->
+        <div v-else>
           <!-- Action Buttons -->
           <div class="flex flex-wrap gap-3 mb-6">
             <button
@@ -392,22 +574,45 @@ const handleImageAdd = (food: Food, amount: number) => {
                     {{ food.category }}
                   </span>
                 </div>
-                <button
-                  v-motion
-                  :hovered="{ scale: 1.1 }"
-                  :tapped="{ scale: 0.9 }"
-                  @click="toggleFavorite(food)"
-                  class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-                >
-                  <Heart
-                    :size="20"
-                    :class="[
-                      store.isFavorite(food.code) ? 'text-red-500 fill-red-500' : 'text-gray-400'
-                    ]"
-                  />
-                </button>
+                <div class="flex gap-1">
+                  <button
+                    v-motion
+                    :hovered="{ scale: 1.1 }"
+                    :tapped="{ scale: 0.9 }"
+                    @click.stop="toggleFavorite(food)"
+                    class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <Heart
+                      :size="20"
+                      :class="[
+                        store.isFavorite(food.code) ? 'text-red-500 fill-red-500' : 'text-gray-400'
+                      ]"
+                    />
+                  </button>
+                  <button
+                    v-if="authStore.isAdmin"
+                    v-motion
+                    :hovered="{ scale: 1.1 }"
+                    :tapped="{ scale: 0.9 }"
+                    @click.stop="startEdit(food)"
+                    class="ml-2 w-8 h-8 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center transition-colors"
+                    title="음식 수정 (관리자)"
+                  >
+                    <Edit2 :size="16" class="text-blue-600" />
+                  </button>
+                  <button
+                    v-if="authStore.isAdmin"
+                    v-motion
+                    :hovered="{ scale: 1.1 }"
+                    :tapped="{ scale: 0.9 }"
+                    @click.stop="handleDeleteFood(food.code)"
+                    class="ml-2 w-8 h-8 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center transition-colors"
+                    title="음식 삭제 (관리자)"
+                  >
+                    <Trash2 :size="16" class="text-red-600" />
+                  </button>
+                </div>
               </div>
-
               <div class="text-sm text-gray-600 space-y-2 mb-3">
                 <div class="flex justify-between">
                   <span>영양소 기준량</span>
@@ -518,7 +723,9 @@ const handleImageAdd = (food: Food, amount: number) => {
           </div>
         </div>
       </div>
-    </Transition>
+    </div>
+
+</Transition>
 
     <!-- Manual Add Modal -->
     <AddFoodManually
