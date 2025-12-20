@@ -20,7 +20,7 @@ const handleLogout = async () => {
     try {
       await router.push('/')
     } catch (e) {
-      // Ignore navigation errors (e.g. NavigationDuplicated)
+      // Ignore navigation errors
     }
     isMenuOpen.value = false
   }
