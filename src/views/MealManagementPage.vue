@@ -226,7 +226,7 @@ const handleChooseExpert = async () => {
 
     <main class="max-w-7xl mx-auto px-6 py-8">
       <div class="mb-8">
-        <h1 class="text-gray-900 mb-2">오늘의 식단</h1>
+        <h1 class="text-gray-900 mb-2 font-pyeongtaek">오늘의 식단</h1>
         <p class="text-gray-600">식사별로 음식을 추가하고 영양소를 확인하세요</p>
       </div>
 

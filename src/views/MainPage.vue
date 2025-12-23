@@ -137,7 +137,7 @@ const currentFoodyImage = computed(() =>
                 </div>
               </div>
 
-              <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-3 justify-items-center">
               <!-- 영양 정보 카드들 -->
                 <div
                   v-if="recommendedNutrition"
@@ -154,9 +154,9 @@ const currentFoodyImage = computed(() =>
                   v-motion
                   :initial="{ opacity: 0, scale: 0.9 }"
                   :enter="{ opacity: 1, scale: 1, transition: { delay: 450 + idx * 50 } }"
-                  class="bg-white rounded-xl p-4 border border-emerald-100/50 hover:border-emerald-200 transition-all hover:shadow-md"
+                  class="bg-white rounded-xl p-4 border border-emerald-100/50 hover:border-emerald-200 transition-all hover:shadow-md text-center"
                 >
-                  <div class="flex items-center gap-2 mb-2">
+                  <div class="flex items-center justify-center gap-2 mb-2">
                     <div :class="`w-8 h-8 rounded-lg bg-gradient-to-br from-${item.color}-100 to-${item.color}-200 flex items-center justify-center`">
                       <component v-if="item.icon" :is="item.icon" :size="16" :class="`text-${item.color}-600`" />
                       <span v-else class="text-sm">{{ item.emoji }}</span>
