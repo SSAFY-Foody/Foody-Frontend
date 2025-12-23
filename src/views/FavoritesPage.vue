@@ -105,7 +105,7 @@ const goToMealManagement = () => {
     <main class="max-w-7xl mx-auto px-6 py-12">
       <!-- Header -->
       <div class="mb-12 text-center md:text-left">
-        <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500 mb-4">
+        <h1 class="text-4xl font-extrabold text-emerald-600 mb-4 font-pyeongtaek" style="font-family: 'PyeongtaekSemiconductor', sans-serif !important;">
           나만의 찜한 음식
         </h1>
         <p class="text-gray-600 text-lg">자주 먹는 음식을 모아보고 관리하세요.</p>

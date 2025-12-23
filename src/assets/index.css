@@ -68,6 +68,20 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'PyeongtaekSemiconductor';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/PTBandocheR.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PyeongtaekSemiconductor';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/PTBandocheB.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -585,25 +599,34 @@
   }
 
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) h1 {
+    font-family: 'PyeongtaekSemiconductor', sans-serif;
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     line-height: 1.5;
   }
 
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) h2 {
+    font-family: 'PyeongtaekSemiconductor', sans-serif;
     font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     line-height: 1.5;
   }
 
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) h3 {
+    font-family: 'PyeongtaekSemiconductor', sans-serif;
     font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
+    font-weight: 700;
     line-height: 1.5;
   }
 
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) h4,
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) label,
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) label {
+    font-family: 'PyeongtaekSemiconductor', sans-serif;
+    font-size: var(--text-base);
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) button {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
@@ -3306,4 +3329,17 @@ html {
   syntax: "*";
   inherits: false;
   initial-value: 1;
+}
+
+/* Custom Font Utilities */
+.font-pyeongtaek {
+  font-family: 'PyeongtaekSemiconductor', sans-serif !important;
+}
+
+.font-pretendard {
+  font-family: 'Pretendard', sans-serif !important;
+}
+
+.font-jalnan {
+  font-family: 'YeogiOttaeJalnan', sans-serif !important;
 }

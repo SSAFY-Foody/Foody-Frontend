@@ -57,7 +57,7 @@ const router = useRouter()
     <main class="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
       <div class="max-w-5xl mx-auto space-y-4">
         <div class="flex items-center justify-between px-2 py-4">
-          <h1 class="text-2xl font-bold text-gray-900" style="font-family: 'YeogiOttaeJalnan', sans-serif;">식단 커뮤니티</h1>
+          <h1 class="text-2xl font-bold text-gray-900 font-pyeongtaek">식단 커뮤니티</h1>
           
           <!-- Pagination Controls -->
           <div v-if="!isLoading && reports.length > 0" class="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-2">
